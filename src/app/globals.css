@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  /* Pastel Light Theme */
+  --background: #faf9f7;          /* 暖奶油白 */
+  --foreground: #2e2b28;          /* 柔软深棕，不用纯黑 */
+
+  --color-survive: #ddf1ff;       /* 淡蓝 */
+  --color-survive-text: #0284c7;
+  --color-creation: #d8f8e8;      /* 薄荷绿 */
+  --color-creation-text: #16a34a;
+  --color-fun: #fce8f4;           /* 樱花粉 */
+  --color-fun-text: #db2777;
+  --color-heal: #f0eaff;          /* 薰衣草紫 */
+  --color-heal-text: #9333ea;
+
+  --color-card-bg: rgba(255, 255, 255, 0.62);
+  --color-card-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.055), 0 1px 3px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #16131a;
+    --foreground: #f0eef5;
+    --color-survive: rgba(2, 132, 199, 0.2);
+    --color-survive-text: #38bdf8;
+    --color-creation: rgba(22, 163, 74, 0.2);
+    --color-creation-text: #4ade80;
+    --color-fun: rgba(219, 39, 119, 0.2);
+    --color-fun-text: #f472b6;
+    --color-heal: rgba(147, 51, 234, 0.2);
+    --color-heal-text: #c084fc;
+    --color-card-bg: rgba(28, 24, 36, 0.72);
+    --color-card-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.4);
+  }
+}
+
+body {
+  background-color: oklch(97.5% 0.008 80);  /* 暖奶油白，微暖色调，非纯白 */
+  color: oklch(22% 0.012 60);               /* 柔软深棕，非纯黑 */
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+  /* 极淡点阵 — 给空间以物理感，不喧宾夺主 */
+  background-image: radial-gradient(
+    oklch(22% 0.012 60 / 0.045) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: oklch(14% 0.012 270);  /* 深蓝紫调，非纯黑 */
+    color: oklch(93% 0.010 80);
+    background-image: radial-gradient(
+      oklch(93% 0.010 80 / 0.06) 1px,
+      transparent 1px
+    );
+    background-size: 22px 22px;
+  }
+}
+
+/* Bento card base style */
+.bento-card {
+  background-color: var(--color-card-bg);
+  border-radius: 1.5rem;
+  box-shadow: var(--color-card-shadow);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Scrollbar utility — hide completely, keep scroll functionality */
+.scrollbar-none {
+  -ms-overflow-style: none;   /* IE/Edge */
+  scrollbar-width: none;      /* Firefox */
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;              /* Chrome/Safari/Opera */
+}
+
+/* +10 积分飞出动效 */
+@keyframes pointsPop {
+  0%   { opacity: 0; transform: scale(0.6); }
+  25%  { opacity: 1; transform: scale(1.2); }
+  65%  { opacity: 1; transform: scale(1.0); }
+  100% { opacity: 0; transform: scale(0.9); }
+}
+
+/* 彩带庆祝 */
+@keyframes confettiFall {
+  0%   { opacity: 1; transform: translateY(0) rotate(0deg); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(110vh) rotate(720deg); }
+}
