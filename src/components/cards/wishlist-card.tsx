@@ -1,4 +1,5 @@
 "use client";
+import { monthlyPoints } from "@/lib/points";
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Plus, X, Check, Camera, Pencil, Trash2 } from "lucide-react";
@@ -105,7 +106,7 @@ function WishTile({ w, points, onRedeem, onEdit, onDelete }: WishTileProps) {
           color: color.text, fontSize: 9, fontWeight: 800, opacity: 0.7,
           textShadow: w.imageUrl ? "0 1px 4px rgba(255,255,255,0.8)" : "none",
         }}>
-          {w.cost} 分
+          {w.cost} pts
         </span>
       </div>
 
@@ -151,7 +152,8 @@ function WishTile({ w, points, onRedeem, onEdit, onDelete }: WishTileProps) {
 
 // ─── 主组件 ───────────────────────────────────────────────────
 export function WishlistCard() {
-  const { points, wishlist, addWish, removeWish, updateWish, redeemWish } = useWorkspaceStore();
+  const { tasks, wishlist, transactions, taskHistory, addWish, removeWish, updateWish, redeemWish } = useWorkspaceStore();
+  const pts = monthlyPoints(taskHistory, transactions, tasks);
 
   // 开宝箱状态
   const [chestCost, setChestCost] = useState<number | null>(null);
@@ -212,7 +214,7 @@ export function WishlistCard() {
   };
 
   const handleRedeem = (w: typeof wishlist[0]) => {
-    if (points < w.cost) return;
+    if (pts < w.cost) return;
     pendingRedeemId.current = w.id;
     setChestCost(w.cost); // 开启动效
   };
@@ -241,9 +243,9 @@ export function WishlistCard() {
           </span>
           <div className="flex items-baseline gap-1">
             <span className="text-[20px] font-black tabular-nums leading-none" style={{ color: THEME.dark }}>
-              {points.toLocaleString()}
+              {pts.toLocaleString()}
             </span>
-            <span className="text-[10px] font-semibold text-foreground/30">分</span>
+            <span className="text-[10px] font-semibold text-foreground/30">pts</span>
           </div>
         </div>
 
@@ -262,7 +264,7 @@ export function WishlistCard() {
               alignContent: "end",
             }}>
               {displayList.map(w => (
-                <WishTile key={w.id} w={w} points={points}
+                <WishTile key={w.id} w={w} points={pts}
                   onRedeem={() => handleRedeem(w)}
                   onEdit={() => openEdit(w)}
                   onDelete={() => removeWish(w.id)}

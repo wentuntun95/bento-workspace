@@ -1,4 +1,5 @@
 "use client";
+import { monthlyExchanged } from "@/lib/points";
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Plus, X, Check, Camera, Pencil, Trash2 } from "lucide-react";
@@ -98,7 +99,7 @@ function Tile({ t, onDelete, onEdit }: TileProps) {
           color: color.text, fontSize: 9, fontWeight: 800, opacity: 0.75,
           textShadow: hasImg ? "0 1px 4px rgba(255,255,255,0.8)" : "none",
         }}>
-          {t.amount}分
+          {t.amount} pts
         </span>
       </div>
 
@@ -137,7 +138,8 @@ function Tile({ t, onDelete, onEdit }: TileProps) {
 
 // ─── 主组件 ───────────────────────────────────────────────────
 export function LedgerCard() {
-  const { points, transactions, addTransaction, removeTransaction, updateTransaction } = useWorkspaceStore();
+  const { transactions, addTransaction, removeTransaction, updateTransaction } = useWorkspaceStore();
+  const exchanged = monthlyExchanged(transactions);
 
   // Add form state
   const [adding, setAdding] = useState(false);
@@ -176,7 +178,7 @@ export function LedgerCard() {
   const handleSubmit = () => {
     const name = title.trim(), pts = parseInt(cost, 10);
     if (!name || !pts || pts <= 0) return;
-    if (points - pts < 0) { alert("积分不足！"); return; }
+
     addTransaction(name, -pts, preview ?? undefined);
     cancel();
   };
@@ -212,9 +214,9 @@ export function LedgerCard() {
         </span>
         <div className="flex items-baseline gap-1">
           <span className="text-[20px] font-black tabular-nums leading-none" style={{ color: THEME.dark }}>
-            {points.toLocaleString()}
+            {exchanged.toLocaleString()}
           </span>
-          <span className="text-[10px] font-semibold text-foreground/30">分</span>
+          <span className="text-[10px] font-semibold text-foreground/30">pts</span>
         </div>
       </div>
 

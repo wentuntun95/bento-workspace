@@ -1,12 +1,16 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { addDays } from "date-fns";
+import { type TaskHistoryEntry, todayStr, currentISOWeek } from "./points";
+
+export type { TaskHistoryEntry } from "./points";
 
 export interface Task {
   id: string;
   text: string;
   completed: boolean;
   type: "survive" | "creation" | "fun" | "heal";
+  createdAt: string;  // ISO 时间字符串
 }
 
 export interface DDLItem {
@@ -87,7 +91,12 @@ export const DEFAULT_BOOKMARKS: Bookmark[] = [
 interface WorkspaceState {
   tasks: Task[];
   ddls: DDLItem[];
-  points: number;
+
+  // 积分系统（派生架构）
+  taskHistory: TaskHistoryEntry[];   // 每日归档，不可变
+  lastDailyReset: string;            // "YYYY-MM-DD"
+  lastWeeklyReset: string;           // "YYYY-WW"
+
   addTask: (text: string, type: Task["type"]) => void;
   toggleTask: (id: string) => void;
   removeTask: (id: string) => void;
@@ -96,9 +105,13 @@ interface WorkspaceState {
   updateDdl: (id: string, patch: Partial<Pick<DDLItem, "title" | "time" | "contact">>) => void;
   moveDdlToTask: (ddlId: string, targetType: Task["type"]) => void;
 
+  // 每日/每周重置
+  checkAndResetDaily: () => void;
+  checkAndResetWeekly: () => void;
+
   // B系 积分消耗系统
   wishlist: WishItem[];
-  transactions: Transaction[];
+  transactions: Transaction[];  // 全部消费流水（amount 负数）
   addWish: (title: string, cost: number, imageUrl?: string) => void;
   removeWish: (id: string) => void;
   updateWish: (id: string, title: string, cost: number, imageUrl?: string) => void;
@@ -150,10 +163,12 @@ interface WorkspaceState {
 
 export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       tasks: [],
       ddls: [],
-      points: 0,
+      taskHistory: [],
+      lastDailyReset: "",
+      lastWeeklyReset: "",
       wishlist: [],
       transactions: [],
       notes: [],
@@ -168,24 +183,58 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       bookmarks: DEFAULT_BOOKMARKS,
 
       addTask: (text, type) => set((state) => ({
-        tasks: [...state.tasks, { id: Math.random().toString(36).substring(7), text, completed: false, type }]
+        tasks: [...state.tasks, {
+          id: Math.random().toString(36).substring(7),
+          text, completed: false, type,
+          createdAt: new Date().toISOString(),
+        }]
       })),
 
-      toggleTask: (id) => set((state) => {
-        const newTasks = state.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
-        const task = state.tasks.find(t => t.id === id);
-        const delta = task ? (!task.completed ? 10 : -10) : 0;
-        return { tasks: newTasks, points: Math.max(0, state.points + delta) };
-      }),
+      // 打勾/取消：只改 completed，不动积分（积分在每日归档时统一计算）
+      toggleTask: (id) => set((state) => ({
+        tasks: state.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t),
+      })),
 
-      removeTask: (id) => set((state) => {
-        const task = state.tasks.find(t => t.id === id);
-        const deduct = task?.completed ? 10 : 0;
+      // 删除任务：不回退积分（未完成不影响，已完成等归档）
+      removeTask: (id) => set((state) => ({
+        tasks: state.tasks.filter(t => t.id !== id),
+      })),
+
+      // ── 每日重置：归档 → 清空 ───────────────────────────────────────────────
+      checkAndResetDaily: () => set((state) => {
+        const today = todayStr();
+        if (state.lastDailyReset === today) return {};
+
+        const completed = state.tasks.filter(t => t.completed);
+        if (completed.length === 0 && state.lastDailyReset === "") {
+          // 第一次启动且无已完成任务，只更新日期
+          return { lastDailyReset: today, tasks: [] };
+        }
+
+        const entry: TaskHistoryEntry = {
+          date: state.lastDailyReset || today,
+          survive:  completed.filter(t => t.type === "survive").length,
+          creation: completed.filter(t => t.type === "creation").length,
+          fun:      completed.filter(t => t.type === "fun").length,
+          heal:     completed.filter(t => t.type === "heal").length,
+          pts: completed.length * 10,
+        };
+
+        const newHistory = completed.length > 0
+          ? [...state.taskHistory, entry]
+          : state.taskHistory;
+
         return {
-          tasks: state.tasks.filter(t => t.id !== id),
-          points: Math.max(0, state.points - deduct),
+          taskHistory: newHistory,
+          tasks: [],    // 清空（未完成也丢弃）
+          lastDailyReset: today,
         };
       }),
+
+      // ── 每周重置：更新周标记（能量树自动读新周 taskHistory）──────────────────
+      checkAndResetWeekly: () => set(() => ({
+        lastWeeklyReset: currentISOWeek(),
+      })),
 
       addDdl: (title, date, time, contact) => set((state) => ({
         ddls: [...state.ddls, { id: Math.random().toString(36).substring(7), title, date, time, contact }]
@@ -211,6 +260,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             text: ddl.title,
             completed: false,
             type: targetType,
+            createdAt: new Date().toISOString(),
           }],
         };
       }),
@@ -233,13 +283,13 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       updateWish: (id, title, cost, imageUrl) => set((state) => ({
         wishlist: state.wishlist.map(w =>
           w.id === id
-            ? { ...w, title, cost, ...(imageUrl !== undefined ? { imageUrl } : {}) }
+            ? { ...w, title, cost, imageUrl }   // 始终覆盖，undefined = 清除图片
             : w
         ),
       })),
 
+      // 消费流水：不再直接改 points，由派生函数计算
       addTransaction: (title, amount, imageUrl) => set((state) => ({
-        points: Math.max(0, state.points + amount),
         transactions: [{
           id: Math.random().toString(36).substring(7),
           title,
@@ -249,42 +299,28 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         }, ...state.transactions],
       })),
 
-      removeTransaction: (id) => set((state) => {
-        const t = state.transactions.find(x => x.id === id);
-        if (!t) return state;
-        return {
-          points: Math.max(0, state.points - t.amount),
-          transactions: state.transactions.filter(x => x.id !== id),
-        };
-      }),
+      removeTransaction: (id) => set((state) => ({
+        transactions: state.transactions.filter(x => x.id !== id),
+      })),
 
-      updateTransaction: (id, title, amount, imageUrl) => set((state) => {
-        const t = state.transactions.find(x => x.id === id);
-        if (!t) return state;
-        // diff = newAmount - oldAmount
-        // 例如旧=-50改成-80：diff=-30，points应减30 → points + diff
-        const diff = amount - t.amount;
-        return {
-          points: Math.max(0, state.points + diff),
-          transactions: state.transactions.map(x =>
-            x.id === id
-              ? { ...x, title, amount, ...(imageUrl !== undefined ? { imageUrl } : {}) }
-              : x
-          ),
-        };
-      }),
+      updateTransaction: (id, title, amount, imageUrl) => set((state) => ({
+        transactions: state.transactions.map(x =>
+          x.id === id
+            ? { ...x, title, amount, imageUrl }   // 始终覆盖，undefined = 清除图片
+            : x
+        ),
+      })),
 
+      // redeemWish：写入 transactions（Ledger 自动显示），不改 points
       redeemWish: (id) => set((state) => {
         const wish = state.wishlist.find(w => w.id === id);
-        if (!wish) return state; // 找不到
-        if (state.points < wish.cost) return state; // 积分不足
-
+        if (!wish) return state;
+        // 兑换检查：用 monthlyPoints 派生值（在组件层计算，这里直接允许）
         return {
-          points: state.points - wish.cost,
           wishlist: state.wishlist.filter(w => w.id !== id),
           transactions: [{
             id: Math.random().toString(36).substring(7),
-            title: wish.title,
+            title: `[兑换] ${wish.title}`,
             amount: -wish.cost,
             date: new Date().toISOString(),
           }, ...state.transactions],
@@ -407,21 +443,39 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       name: "workspace-storage",
       partialize: (state) => ({
         tasks: state.tasks,
-        points: state.points,
+        taskHistory: state.taskHistory,
+        lastDailyReset: state.lastDailyReset,
+        lastWeeklyReset: state.lastWeeklyReset,
         wishlist: state.wishlist,
         transactions: state.transactions,
         notes: state.notes,
         imageStickers: state.imageStickers,
+        activeImageUrl: state.activeImageUrl,
+        activeImageAspectRatio: state.activeImageAspectRatio,
+        imageHistory: state.imageHistory,
         ddls: state.ddls.map(d => ({ ...d, date: d.date.toISOString() })),
         bookmarks: state.bookmarks,
+        tracks: state.tracks,
       }) as any,
       onRehydrateStorage: () => (state) => {
-        if (state?.ddls) {
+        if (!state) return;
+        // 修复 DDL 日期
+        if (state.ddls) {
           state.ddls = state.ddls.map((d: any) => ({
             ...d,
             date: new Date(d.date),
             time: d.time ?? "00:00",
           }));
+        }
+        // localStorage 迁移：旧版有 points 字段但无 taskHistory，保留历史积分
+        const legacy = state as any;
+        if (legacy.points > 0 && (!state.taskHistory || state.taskHistory.length === 0)) {
+          const today = new Date().toISOString().slice(0, 10);
+          state.taskHistory = [{
+            date: today,
+            survive: 0, creation: 0, fun: 0, heal: 0,
+            pts: legacy.points,
+          }];
         }
       },
     }

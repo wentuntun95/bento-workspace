@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useWorkspaceStore } from "@/lib/store";
+import { weeklyPoints, monthlyPoints } from "@/lib/points";
 
 // ─────────────────────────────────────────────────────────────
 // CONSTANTS — matches energytree-design-note.md exactly
@@ -185,7 +186,9 @@ const FIREFLIES: FF[] = Array.from({ length: 12 }, (_, i) => ({
 // ─────────────────────────────────────────────────────────────
 export function EnergyTreeCard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { tasks, points } = useWorkspaceStore();
+  const { tasks, taskHistory, transactions } = useWorkspaceStore();
+  const wPts = weeklyPoints(taskHistory, transactions, tasks);
+  const mPts = monthlyPoints(taskHistory, transactions, tasks);
 
   const completedTasks = tasks.filter(t => t.completed);
   const fruits = completedTasks
@@ -337,7 +340,10 @@ export function EnergyTreeCard() {
           <div className="pointer-events-auto flex flex-col bg-white/65 backdrop-blur-md px-3 py-2 rounded-2xl border border-emerald-100 shadow-sm">
             <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600/70 mb-0.5">Energy</span>
             <span className="text-lg font-black text-emerald-700 leading-none">
-              {points}<span className="text-[10px] font-medium text-emerald-500 ml-1">pts</span>
+              <span className="text-[10px] font-medium text-emerald-500">本周</span>
+              <span className="text-lg font-black text-emerald-700 ml-2">{wPts}</span>
+              <span className="text-[10px] font-medium text-emerald-500 ml-3">本月</span>
+              <span className="ml-1 text-emerald-400">{mPts}</span>
             </span>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Trash2, Minimize2, Plus } from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store";
 
 // ─── 压缩 ─────────────────────────────────────────────────────────────────────
@@ -33,8 +33,10 @@ const ICON_BTN: React.CSSProperties = {
   boxShadow: "0 1px 4px rgba(0,0,0,0.12)", backdropFilter: "blur(6px)",
 };
 
-// ─── + 添加图片 按钮（与其他组件一致：无底色，低透明度） ────────────────────
-function AddBtn({ onImage, full, onClick }: { onImage?: boolean; full?: boolean; onClick: () => void }) {
+// ─── AddBtn（按 button-spec.md 规范）────────────────────────────────────────────
+function AddBtn({ onImage, full, onClick, label = "添加图片" }: {
+  onImage?: boolean; full?: boolean; onClick: () => void; label?: string;
+}) {
   const defaultBg = onImage ? "rgba(255,255,255,0.6)" : "transparent";
   const hoverBg   = onImage ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.08)";
   return (
@@ -55,16 +57,17 @@ function AddBtn({ onImage, full, onClick }: { onImage?: boolean; full?: boolean;
       onMouseLeave={e => (e.currentTarget.style.background = defaultBg)}
     >
       <Plus size={11} />
-      添加图片
+      {label}
     </button>
   );
 }
 
-// ─── 历史下拉（absolute，无弹窗无遮罩）───────────────────────────────────────
-function HistoryDropdown({ onSelect, onUpload, onClose }: {
+// ─── 历史下拉 ─────────────────────────────────────────────────────────────────
+function HistoryDropdown({ onSelect, onUpload, onClose, anchorBottom }: {
   onSelect: (url: string) => void;
   onUpload: () => void;
   onClose: () => void;
+  anchorBottom?: boolean; // true = 浮动模式，向上展开
 }) {
   const imageHistory      = useWorkspaceStore(s => s.imageHistory);
   const removeFromHistory = useWorkspaceStore(s => s.removeFromImageHistory);
@@ -82,12 +85,16 @@ function HistoryDropdown({ onSelect, onUpload, onClose }: {
     };
   }, [onClose]);
 
+  const posStyle: React.CSSProperties = anchorBottom
+    ? { bottom: "calc(100% + 4px)", top: "auto" }
+    : { top: "calc(100% + 4px)" };
+
   return (
     <div
       data-img-zone="true"
       className="absolute z-50 bg-white rounded-2xl flex flex-col gap-2 p-3"
       style={{
-        top: "calc(100% + 4px)",
+        ...posStyle,
         left: "50%", transform: "translateX(-50%)",
         width: 280,
         boxShadow: "0 8px 32px rgba(0,0,0,0.16)",
@@ -111,7 +118,6 @@ function HistoryDropdown({ onSelect, onUpload, onClose }: {
                 onClick={() => onSelect(url)}
               >
                 <img src={url} alt="" className="w-full h-full object-cover" draggable={false} />
-                {/* 删除按钮放在左上角，更容易区分 */}
                 <button
                   className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded-full flex items-center justify-center bg-white/95 text-red-400 shadow-sm"
                   onClick={e => { e.stopPropagation(); removeFromHistory(url); }}
@@ -129,7 +135,7 @@ function HistoryDropdown({ onSelect, onUpload, onClose }: {
   );
 }
 
-// ─── ImageStickerGrid ──────────────────────────────────────────────────────
+// ─── ImageStickerGrid ──────────────────────────────────────────────────────────
 export function ImageStickerGrid() {
   const activeImageUrl    = useWorkspaceStore(s => s.activeImageUrl);
   const activeImageAR     = useWorkspaceStore(s => s.activeImageAspectRatio);
@@ -143,12 +149,15 @@ export function ImageStickerGrid() {
 
   const fileRef  = useRef<HTMLInputElement>(null);
   const cardRef  = useRef<HTMLDivElement>(null);
-  const [hovered,      setHovered]      = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showDropdown,       setShowDropdown]       = useState(false);
+  const [floatShowDropdown,  setFloatShowDropdown]  = useState(false);
+  const [floatHovered,       setFloatHovered]       = useState(false);
 
-  // 浮动本地状态
+  // 浮动本地坐标（drag/resize 用 ref 驱动，setState 用于渲染）
   const [fPos, setFPos] = useState({ x: imageCardX, y: imageCardY, w: imageCardW });
   const fRef = useRef(fPos);
+
+  // 当 store 里 expanded 变为 true 时同步坐标
   useEffect(() => {
     if (imageCardExpanded) {
       const p = { x: imageCardX, y: imageCardY, w: imageCardW };
@@ -157,35 +166,41 @@ export function ImageStickerGrid() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageCardExpanded]);
 
-  // ── 上传 ──────────────────────────────────────────────────────────────────
+  // ── 上传处理（上传成功 → 直接弹出浮动）─────────────────────────────────────
   const triggerUpload = useCallback(() => {
     setShowDropdown(false);
-    // 稍微延迟，确保 dropdown 已关闭、状态稳定后再弹文件选择
+    setFloatShowDropdown(false);
     setTimeout(() => fileRef.current?.click(), 50);
   }, []);
 
   const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     const { url, ar } = await compressImage(file);
+    // 从卡片当前位置浮动（不居中）
+    const rect = cardRef.current?.getBoundingClientRect();
+    const initW = rect ? rect.width : 280;
+    const initX = rect ? rect.left : 100;
+    const initY = rect ? rect.top : 100;
     setActiveImage(url, ar);
+    setExpanded(true, initX, initY, initW);
     if (fileRef.current) fileRef.current.value = "";
-  }, [setActiveImage]);
+  }, [setActiveImage, setExpanded, cardRef]);
 
   const handleHistorySelect = useCallback((url: string) => {
     setShowDropdown(false);
+    setFloatShowDropdown(false);
     const img = new Image();
-    img.onload = () => setActiveImage(url, img.naturalWidth / img.naturalHeight);
+    img.onload = () => {
+      const ar = img.naturalWidth / img.naturalHeight;
+      const rect = cardRef.current?.getBoundingClientRect();
+      const initW = rect ? rect.width : 280;
+      const initX = rect ? rect.left : 100;
+      const initY = rect ? rect.top : 100;
+      setActiveImage(url, ar);
+      setExpanded(true, initX, initY, initW);
+    };
     img.src = url;
-  }, [setActiveImage]);
-
-  // ── 展开浮动（从当前位置展开，不弹到屏幕中央）────────────────────────────
-  const handleExpand = useCallback(() => {
-    const rect = cardRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    // 从卡片当前位置展开，保持原始宽度（或稍大）
-    const initW = Math.max(240, rect.width);
-    setExpanded(true, rect.left, rect.top, initW);
-  }, [setExpanded]);
+  }, [setActiveImage, setExpanded, cardRef]);
 
   // ── 拖拽移位 ──────────────────────────────────────────────────────────────
   const startMove = useCallback((e: React.PointerEvent) => {
@@ -223,35 +238,28 @@ export function ImageStickerGrid() {
     window.addEventListener("pointerup", onUp);
   }, [setExpanded]);
 
-  const hasImage   = !!activeImageUrl;
-  const floatW     = fPos.w || 360;
-  const floatH     = Math.round(floatW / (activeImageAR || 1));
-  // hover 控件：鼠标在卡片上 OR 下拉菜单打开（避免移到菜单时卸载）
-  const showHover  = hovered || showDropdown;
+  const hasImage  = !!activeImageUrl;
+  const floatW    = fPos.w || 360;
+  const floatH    = Math.round(floatW / (activeImageAR || 1));
+  const showFloat = hasImage && imageCardExpanded;
+  const showHoverControls = floatHovered || floatShowDropdown;
 
   return (
     <>
-      {/* ── 卡片主体 ──────────────────────────────────────────────────── */}
+      {/* ── Grid 占位（始终固定尺寸，不随图片变化）──────────────────── */}
       <div
         ref={cardRef}
         data-img-zone="true"
         style={{
           position: "relative",
+          height: "100%",
+          width: "100%",
           borderRadius: 24,
-          // 空态：aspect-ratio 1:1 保证 1×1 格大小
-          ...(!hasImage && !imageCardExpanded ? { aspectRatio: "1 / 1" } : {}),
-        }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={(e) => {
-          // 移入下拉菜单不关闭
-          if (!(e.relatedTarget as HTMLElement)?.closest?.("[data-img-zone]")) {
-            setHovered(false);
-          }
         }}
         onPointerDown={e => e.stopPropagation()}
       >
-        {!hasImage ? (
-          // ── 空态 ────────────────────────────────────────────────────
+        {/* 空态：Photo 标题 + 添加按钮 */}
+        {!hasImage && (
           <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
             <div style={{ padding: "12px 12px 4px" }}>
               <span style={{ fontFamily: "var(--font-caveat)", fontWeight: 600, fontSize: 15, color: "#64748b" }}>
@@ -259,8 +267,7 @@ export function ImageStickerGrid() {
               </span>
             </div>
             <div style={{ flex: 1 }} />
-            {/* 底部按钮：px-4 pb-4 对齐 task-card p-4 */}
-            <div style={{ paddingBottom: 16, paddingLeft: 16, paddingRight: 16, position: "relative" }}>
+            <div data-img-zone="true" style={{ paddingBottom: 16, paddingLeft: 16, paddingRight: 16, position: "relative" }}>
               <AddBtn full onClick={() => setShowDropdown(v => !v)} />
               {showDropdown && (
                 <HistoryDropdown
@@ -271,93 +278,49 @@ export function ImageStickerGrid() {
               )}
             </div>
           </div>
+        )}
 
-        ) : imageCardExpanded ? (
-          // ── 浮动占位 ────────────────────────────────────────────────
-          <div style={{ borderRadius: 24, overflow: "hidden" }}>
+        {/* 有图时：半透明占位（图片在浮动 portal）*/}
+        {hasImage && (
+          <div style={{
+            position: "absolute", inset: 0,
+            borderRadius: 24, overflow: "hidden",
+            background: "rgba(0,0,0,0.04)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
             <img
               src={activeImageUrl!} alt=""
-              style={{ width: "100%", height: "auto", display: "block", opacity: 0.15 }}
+              style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.12 }}
               draggable={false}
             />
+            <span style={{
+              position: "absolute",
+              fontSize: 11, color: "rgba(0,0,0,0.25)", fontFamily: "var(--font-caveat)",
+            }}>
+              浮动中 ↗
+            </span>
           </div>
-
-        ) : (
-          // ── 图片态：高随 ar 自适应 ───────────────────────────────────
-          <>
-            {/* 图片（内层 overflow:hidden 裁圆角）*/}
-            <div style={{ borderRadius: 24, overflow: "hidden" }}>
-              <img
-                src={activeImageUrl!} alt=""
-                style={{ width: "100%", height: "auto", display: "block" }}
-                draggable={false}
-              />
-            </div>
-
-            {/* 外层控件（不受 overflow:hidden 限制）*/}
-            {showHover && (
-              <>
-                {/* 右上角删除 */}
-                <button
-                  style={{ position: "absolute", top: 8, right: 8, zIndex: 5, ...ICON_BTN, color: "#ef4444" }}
-                  data-no-move="true"
-                  onClick={clearActiveImage}
-                >
-                  <Trash2 size={12} />
-                </button>
-
-                {/* 底部全宽按钮，px-4 pb-4 对齐 task-card */}
-                <div
-                  data-img-zone="true"
-                  style={{
-                    position: "absolute", bottom: 0, left: 0, right: 0,
-                    padding: "0 16px 16px", zIndex: 5,
-                  }}
-                >
-                  <div style={{ position: "relative" }}>
-                    <AddBtn full onImage onClick={() => setShowDropdown(v => !v)} />
-                    {showDropdown && (
-                      <HistoryDropdown
-                        onSelect={handleHistorySelect}
-                        onUpload={triggerUpload}
-                        onClose={() => setShowDropdown(false)}
-                      />
-                    )}
-                  </div>
-                </div>
-
-                {/* SE resize 手柄（贴合图片右下角）*/}
-                <div
-                  style={{
-                    position: "absolute", right: 6, bottom: 6, zIndex: 10,
-                    width: 14, height: 14, borderRadius: 5,
-                    background: "rgba(255,255,255,0.9)",
-                    border: "1.5px solid rgba(0,0,0,0.15)",
-                    cursor: "se-resize",
-                    boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
-                  }}
-                  onClick={e => { e.stopPropagation(); handleExpand(); }}
-                />
-              </>
-            )}
-          </>
         )}
       </div>
 
-      {/* ── 浮动 Overlay ──────────────────────────────────────────────── */}
-      {imageCardExpanded && hasImage && typeof document !== "undefined" && createPortal(
+      {/* ── 浮动 Overlay（始终通过 portal 展示图片）──────────────────────────── */}
+      {showFloat && typeof document !== "undefined" && createPortal(
         <div
+          data-img-zone="true"
           style={{
             position: "fixed", left: fPos.x, top: fPos.y,
             width: floatW, zIndex: 9990,
             borderRadius: 16, overflow: "visible",
-            boxShadow: "0 16px 56px rgba(0,0,0,0.3)",
+            boxShadow: "0 16px 56px rgba(0,0,0,0.28)",
             cursor: "grab", userSelect: "none",
           }}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
+          onMouseEnter={() => setFloatHovered(true)}
+          onMouseLeave={() => {
+            if (!floatShowDropdown) setFloatHovered(false);
+          }}
           onPointerDown={startMove}
         >
+          {/* 图片 */}
           <div style={{ width: "100%", height: floatH, borderRadius: 16, overflow: "hidden" }}>
             <img
               src={activeImageUrl!} alt=""
@@ -366,29 +329,51 @@ export function ImageStickerGrid() {
             />
           </div>
 
-          {hovered && (
+          {/* Hover 控件 */}
+          {showHoverControls && (
             <>
-              <button style={{ position: "absolute", top: 8, left: 8, ...ICON_BTN, color: "#374151" }}
-                data-no-move="true" onPointerDown={e => e.stopPropagation()}
-                onClick={() => setExpanded(false)}>
-                <Minimize2 size={12} />
-              </button>
-              <button style={{ position: "absolute", top: 8, right: 8, ...ICON_BTN, color: "#ef4444" }}
-                data-no-move="true" onPointerDown={e => e.stopPropagation()}
-                onClick={clearActiveImage}>
+              {/* 右上角删除 */}
+              <button
+                style={{ position: "absolute", top: 8, right: 8, zIndex: 10, ...ICON_BTN, color: "#ef4444" }}
+                data-no-move="true"
+                onPointerDown={e => e.stopPropagation()}
+                onClick={clearActiveImage}
+              >
                 <Trash2 size={12} />
               </button>
+
+              {/* 底部更换图片按钮 */}
+              <div
+                data-img-zone="true"
+                style={{
+                  position: "absolute", bottom: 0, left: 0, right: 0,
+                  padding: "0 12px 12px", zIndex: 10,
+                }}
+              >
+                <div style={{ position: "relative" }} data-img-zone="true">
+                  <div onPointerDown={e => e.stopPropagation()} data-no-move="true">
+                    <AddBtn full onImage onClick={() => setFloatShowDropdown(v => !v)} label="更换图片" />
+                  </div>
+                  {floatShowDropdown && (
+                    <HistoryDropdown
+                      onSelect={handleHistorySelect}
+                      onUpload={triggerUpload}
+                      onClose={() => { setFloatShowDropdown(false); setFloatHovered(false); }}
+                    />
+                  )}
+                </div>
+              </div>
             </>
           )}
 
-          {/* SE 继续调整大小 */}
+          {/* SE resize 手柄（10×10）*/}
           <div
             style={{
-              position: "absolute", right: -6, bottom: -6,
-              width: 16, height: 16, borderRadius: 6,
+              position: "absolute", right: -4, bottom: -4, zIndex: 20,
+              width: 10, height: 10, borderRadius: 3,
               background: "white", border: "1.5px solid rgba(0,0,0,0.2)",
-              cursor: "se-resize", zIndex: 20,
-              boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+              cursor: "se-resize",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
             }}
             onPointerDown={startResize}
           />

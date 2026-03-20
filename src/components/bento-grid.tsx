@@ -13,6 +13,7 @@ import { CalendarCard }   from "./cards/calendar-card";
 import { EnergyTreeCard } from "./cards/energy-tree-card";
 import { LedgerCard }     from "./cards/ledger-card";
 import { WishlistCard }   from "./cards/wishlist-card";
+import { WishingLedgerCard } from "./cards/wishing-ledger-card";
 import { NoteWall, NoteWallGrid } from "./cards/note-card";
 import { MusicCard }      from "./cards/music-card";
 import { WeatherCard }    from "./cards/weather-card";
@@ -106,7 +107,6 @@ function GridCard({ type, area }: { type: string; area: string }) {
         gridArea: area,
         transform: s.rotate ? `rotate(${s.rotate})` : undefined,
         transition: "transform 200ms ease, box-shadow 200ms ease",
-        ...(type === "image" ? { alignSelf: "start" } : {}),
       }}
       onMouseEnter={s.rotate ? (e) => {
         (e.currentTarget as HTMLElement).style.transform = "rotate(0deg) scale(1.012)";
@@ -121,8 +121,7 @@ function GridCard({ type, area }: { type: string; area: string }) {
       )}
     >
       <div className={
-        ["music", "weather", "webside", "note", "energytree"].includes(type) ? "h-full" :
-        type === "image" ? "" :
+        ["music", "weather", "webside", "note", "energytree", "image"].includes(type) ? "h-full" :
         "h-full p-4"
       }>
         <CardContent type={type} />
@@ -140,7 +139,7 @@ function Screen1() {
         display: "grid",
         gridTemplateAreas: `
           "surv  fun   tree  note  imag  muse"
-          "surv  heal  tree  note  .     weat"
+          "surv  heal  tree  note  weat  muse"
           "crea  crea  cal   cal   web   web "
         `,
         gridTemplateColumns: "1fr 1fr 1.5fr 1fr 1fr 0.8fr",
@@ -163,25 +162,18 @@ function Screen1() {
   );
 }
 
-// Screen2: 只有 Redemption + Wishlist，各占半屏
+// Screen2: 许愿账本大卡（许愿池插画 + Wishlist + Ledger 合并）
 function Screen2() {
   return (
     <div
-      className="h-full flex items-center"
-      style={{ width: "52vw", padding: "0 20px" }}
+      className="h-full flex items-stretch"
+      style={{ width: "44vw", padding: "16px 20px 16px 8px" }}
     >
       <div
-        style={{
-          display: "grid",
-          gridTemplateAreas: '"led wish"',
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "22vw",   // 近似正方：列宽约 25vw → 高 22vw
-          gap: 12,
-          width: "100%",
-        }}
+        className="flex-1 rounded-3xl border border-black/5 shadow-sm overflow-hidden"
+        style={{ background: "transparent" }}
       >
-        <GridCard type="ledger"   area="led"  />
-        <GridCard type="wishlist" area="wish" />
+        <WishingLedgerCard />
       </div>
     </div>
   );
