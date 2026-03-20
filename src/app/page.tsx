@@ -3,17 +3,17 @@
 import { useRef, useState, useEffect } from "react";
 import { BentoGrid } from "@/components/bento-grid";
 import { XiaoYouReminder } from "@/components/xiao-you-reminder";
+import { EnergyReportModal } from "@/components/energy-report-modal";
 import { useWorkspaceStore } from "@/lib/store";
 import { monthlyPoints } from "@/lib/points";
 
 function Header({
-  onNav,
-  currentPage,
-  totalPages,
+  onNav, currentPage, totalPages, onReport,
 }: {
   onNav: (n: number) => void;
   currentPage: number;
   totalPages: number;
+  onReport: () => void;
 }) {
   const tasks       = useWorkspaceStore((s) => s.tasks);
   const taskHistory  = useWorkspaceStore((s) => s.taskHistory);
@@ -21,17 +21,17 @@ function Header({
   const pts = monthlyPoints(taskHistory, transactions, tasks);
 
   return (
-    <header className="flex-shrink-0 flex items-end justify-between px-8 pt-6 pb-3">
+    <header className="flex-shrink-0 flex items-center justify-between px-8 pt-6 pb-3">
       {/* Left wordmark */}
       <div>
         <h1
           className="leading-none text-foreground/80 select-none"
           style={{ fontFamily: "'Caveat', cursive", fontSize: "2.6rem", fontWeight: 700 }}
         >
-          HOME
+          The Next Move
         </h1>
-        <p className="text-[10px] text-foreground/30 tracking-[0.22em] uppercase mt-0.5 ml-0.5">
-          能量回收站
+        <p className="text-[10px] text-foreground/30 tracking-[0.12em] mt-0.5 ml-0.5">
+          "Where you go, you go forward."
         </p>
       </div>
 
@@ -44,13 +44,13 @@ function Header({
               onClick={() => onNav(i)}
               className="transition-all duration-200"
               style={{
-                width:           currentPage === i ? 18 : 7,
-                height:          7,
-                borderRadius:    4,
-                background:      currentPage === i ? "#fb923c" : "rgba(0,0,0,0.15)",
-                border:          "none",
-                cursor:          "pointer",
-                padding:         0,
+                width:        currentPage === i ? 18 : 7,
+                height:       7,
+                borderRadius: 4,
+                background:   currentPage === i ? "#fb923c" : "rgba(0,0,0,0.15)",
+                border:       "none",
+                cursor:       "pointer",
+                padding:      0,
               }}
             />
           ))}
@@ -60,25 +60,34 @@ function Header({
         </span>
       </div>
 
-      {/* Right: 本月可用积分 */}
-      <div className="flex flex-col items-end">
-        <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-foreground/30 mb-1">
-          本月积分
-        </span>
-        <div className="flex items-baseline gap-1.5">
-          <span className="font-black text-pink-400 tabular-nums leading-none" style={{ fontSize: "2rem" }}>
-            {pts}
-          </span>
-          <span className="text-[11px] text-foreground/35 font-medium">pts</span>
-        </div>
-      </div>
+      {/* Right: 成就按钮 */}
+      <button
+        onClick={onReport}
+        title="成就周报"
+        style={{
+          display: "flex", alignItems: "center", gap: 4,
+          fontFamily: "var(--font-caveat)",
+          fontSize: 13, fontWeight: 700,
+          color: "#a16207",
+          background: "rgba(250,204,21,0.12)",
+          border: "1px solid rgba(250,204,21,0.35)",
+          borderRadius: 9, padding: "5px 12px",
+          cursor: "pointer",
+          transition: "background 0.15s",
+        }}
+        onMouseEnter={e => (e.currentTarget.style.background = "rgba(250,204,21,0.28)")}
+        onMouseLeave={e => (e.currentTarget.style.background = "rgba(250,204,21,0.12)")}
+      >
+        ⭐ 成就
+      </button>
     </header>
   );
 }
 
 export default function Home() {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [page, setPage] = useState(0);
+  const [page, setPage]             = useState(0);
+  const [showReport, setShowReport] = useState(false);
   const checkAndResetDaily   = useWorkspaceStore((s) => s.checkAndResetDaily);
   const checkAndResetWeekly  = useWorkspaceStore((s) => s.checkAndResetWeekly);
 
@@ -106,7 +115,7 @@ export default function Home() {
 
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col">
-      <Header onNav={navTo} currentPage={page} totalPages={2} />
+      <Header onNav={navTo} currentPage={page} totalPages={2} onReport={() => setShowReport(true)} />
 
       {/* Horizontal scroll canvas */}
       <div
@@ -168,6 +177,7 @@ export default function Home() {
       </button>
 
       <XiaoYouReminder />
+      {showReport && <EnergyReportModal onClose={() => setShowReport(false)} />}
     </div>
   );
 }

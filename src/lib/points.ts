@@ -123,7 +123,8 @@ export interface WeeklyReport {
 
 export function weeklyReports(
   taskHistory: TaskHistoryEntry[],
-  transactions: Transaction[]
+  transactions: Transaction[],
+  currentTasks?: { completed: boolean; type: string }[]
 ): WeeklyReport[] {
   const map = new Map<string, WeeklyReport>();
 
@@ -132,11 +133,11 @@ export function weeklyReports(
     const existing = map.get(week) ?? { week, pts: 0, spent: 0, survive: 0, creation: 0, fun: 0, heal: 0 };
     map.set(week, {
       ...existing,
-      pts: existing.pts + e.pts,
-      survive: existing.survive + e.survive,
+      pts:      existing.pts      + e.pts,
+      survive:  existing.survive  + e.survive,
       creation: existing.creation + e.creation,
-      fun: existing.fun + e.fun,
-      heal: existing.heal + e.heal,
+      fun:      existing.fun      + e.fun,
+      heal:     existing.heal     + e.heal,
     });
   }
 
@@ -145,6 +146,28 @@ export function weeklyReports(
     const existing = map.get(week);
     if (existing) {
       map.set(week, { ...existing, spent: existing.spent + Math.abs(t.amount) });
+    }
+  }
+
+  // 实时合并今日未归档任务
+  if (currentTasks) {
+    const completed = currentTasks.filter(t => t.completed);
+    if (completed.length > 0) {
+      const todayWeek = currentISOWeek();
+      const existing = map.get(todayWeek) ?? { week: todayWeek, pts: 0, spent: 0, survive: 0, creation: 0, fun: 0, heal: 0 };
+      const byType = { survive: 0, creation: 0, fun: 0, heal: 0 };
+      for (const t of completed) {
+        const k = t.type as keyof typeof byType;
+        if (k in byType) byType[k]++;
+      }
+      map.set(todayWeek, {
+        ...existing,
+        pts:      existing.pts      + completed.length * 10,
+        survive:  existing.survive  + byType.survive,
+        creation: existing.creation + byType.creation,
+        fun:      existing.fun      + byType.fun,
+        heal:     existing.heal     + byType.heal,
+      });
     }
   }
 
