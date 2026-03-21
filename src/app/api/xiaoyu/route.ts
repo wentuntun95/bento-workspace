@@ -78,8 +78,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json() as { messages: ChatMessage[]; context?: AppContext };
   const { messages, context = {} } = body;
 
-  // Keep only last 10 messages
-  const recentMessages = messages.slice(-10);
+  // Keep only last 30 messages (15 exchanges)
+  const recentMessages = messages.slice(-30);
 
   const payload = {
     model: "MiniMax-Text-01",

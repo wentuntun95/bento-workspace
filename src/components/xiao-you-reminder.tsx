@@ -15,23 +15,47 @@ import { X, Mic, MicOff, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 
-// ─── 表情包配置 ───────────────────────────────────────────────
-const EMOTES = [
-  { src: "/squid/wusopu.png",     label: "乌索普",  weight: 4 },
-  { src: "/squid/zeixiao.png",    label: "贼笑",    weight: 3 },
-  { src: "/squid/liukoushui.png", label: "流口水",  weight: 2 },
-  { src: "/squid/xiongdaidai.png",label: "熊呆呆",  weight: 2 },
-  { src: "/squid/shengmenqi.png", label: "生闷气",  weight: 1 },
-  { src: "/squid/daku.png",       label: "哭哭",    weight: 1 },
+// ─── 情绪·表情包系统 ─────────────────────────────────────────
+// emotion: AI 返回的情绪标签 → 对应表情图
+// 用户可根据标签补充新的图片文件
+const EMOTION_MAP: Record<string, { src: string; label: string }> = {
+  greeting:    { src: "/squid/wusopu.png",      label: "打招呼" },   // ← 现有图
+  happy:       { src: "/squid/zeixiao.png",     label: "开心" },      // ← 现有图
+  mischievous: { src: "/squid/zeixiao.png",     label: "坏坏的" },    // ← 现有图
+  excited:     { src: "/squid/liukoushui.png",  label: "兴奋" },      // ← 现有图
+  thinking:    { src: "/squid/xiongdaidai.png", label: "思考中" },    // ← 现有图
+  confused:    { src: "/squid/xiongdaidai.png", label: "困惑" },      // ← 现有图
+  sad:         { src: "/squid/daku.png",        label: "难过" },      // ← 现有图
+  sulking:     { src: "/squid/shengmenqi.png",  label: "生闷气" },    // ← 现有图
+  urgent:      { src: "/squid/daku.png",        label: "紧张" },      // ← 现有图
+  success:     { src: "/squid/zeixiao.png",     label: "成功" },      // 可替换为 /squid/success.png
+  encouraging: { src: "/squid/wusopu.png",      label: "加油" },      // 可替换为 /squid/encouraging.png
+  sleepy:      { src: "/squid/xiongdaidai.png", label: "困了" },      // 可替换为 /squid/sleepy.png
+};
+
+// 随机待机表情池（weight 越高越常出现）
+const IDLE_EMOTES = [
+  { src: "/squid/wusopu.png",      label: "乌索普",  weight: 4 },
+  { src: "/squid/zeixiao.png",     label: "贼笑",    weight: 3 },
+  { src: "/squid/liukoushui.png",  label: "流口水",  weight: 2 },
+  { src: "/squid/xiongdaidai.png", label: "熊呆呆",  weight: 2 },
+  { src: "/squid/shengmenqi.png",  label: "生闷气",  weight: 1 },
+  { src: "/squid/daku.png",        label: "哭哭",    weight: 1 },
 ] as const;
 
 function randomEmote(exclude?: string) {
-  const pool = EMOTES.filter(e => e.src !== exclude);
+  const pool = IDLE_EMOTES.filter(e => e.src !== exclude);
   const w = pool.reduce((s, e) => s + e.weight, 0);
   let r = Math.random() * w;
   for (const e of pool) { r -= e.weight; if (r <= 0) return e; }
   return pool[0];
 }
+
+function emoteByEmotion(emotion: string | null): { src: string; label: string } | null {
+  if (!emotion) return null;
+  return EMOTION_MAP[emotion] ?? null;
+}
+
 
 const CORNERS = ["TL", "TR", "BL", "BR"] as const;
 type Corner = typeof CORNERS[number];
@@ -113,7 +137,7 @@ export function XiaoYouReminder() {
 
   // Position
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const [emote, setEmote] = useState(() => randomEmote());
+  const [emote, setEmote] = useState<{ src: string; label: string }>(() => randomEmote());
   const dragRef = useRef(false);
   const offsetRef = useRef({ x: 0, y: 0 });
   const posRef = useRef({ x: 0, y: 0 });
@@ -124,11 +148,21 @@ export function XiaoYouReminder() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [alertVisible, setAlertVisible] = useState(false);
 
-  // Chat panel
+  // Chat panel — 从 localStorage 恢复（24h 有效），刷新不丢失
+  const CHAT_STORAGE_KEY = "xiaoyu-chat-v1";
   const [chatOpen, setChatOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMsg[]>([
-    { role: "assistant", content: "嗨！我是小鱿~ 可以帮你加任务、记账、查 DDL，用语音或文字告诉我就好 🦑" },
-  ]);
+  const [messages, setMessages] = useState<ChatMsg[]>(() => {
+    try {
+      if (typeof window === "undefined") throw new Error();
+      const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+      if (!raw) throw new Error();
+      const { msgs, ts } = JSON.parse(raw) as { msgs: ChatMsg[]; ts: number };
+      if (Date.now() - ts > 86400_000) throw new Error(); // 超过 24h 失效
+      return msgs;
+    } catch {
+      return [{ role: "assistant" as const, content: "嗨！我是小鱿~ 可以帮你加任务、记账、查 DDL，用语音或文字告诉我就好 🦑" }];
+    }
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
@@ -158,7 +192,7 @@ export function XiaoYouReminder() {
       const mins = minutesUntil(ddl);
       if (mins >= 0 && mins <= 30 && !dismissed.has(ddl.id)) {
         setAlert(ddl); setMinsLeft(mins); setAlertVisible(true);
-        setEmote(mins <= 5 ? EMOTES[5] : EMOTES[3]);
+        setEmote(mins <= 5 ? IDLE_EMOTES[5] : IDLE_EMOTES[3]);
         return;
       }
     }
@@ -175,6 +209,13 @@ export function XiaoYouReminder() {
     const id = setInterval(checkDdl, 30_000);
     return () => clearInterval(id);
   }, [checkDdl]);
+
+  // 保存消息到 localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({ msgs: messages, ts: Date.now() }));
+    } catch {/* quota exceeded etc */}
+  }, [messages]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -211,11 +252,11 @@ export function XiaoYouReminder() {
   async function sendMessage(text: string) {
     if (!text.trim() || loading) return;
     const userMsg: ChatMsg = { role: "user", content: text.trim() };
-    const next = [...messages, userMsg].slice(-10);
+    const next = [...messages, userMsg].slice(-30);
     setMessages(next);
     setInput("");
     setLoading(true);
-    setEmote(EMOTES[4]); // 生闷气 = 思考中
+    setEmote(EMOTION_MAP.thinking); // 思考中
 
     const context = {
       tasks: tasks.map(t => ({ type: t.type, text: t.text, completed: t.completed })),
@@ -230,11 +271,13 @@ export function XiaoYouReminder() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next, context }),
       });
-      const data = await res.json() as { reply?: string; action?: AiAction; error?: string };
+      const data = await res.json() as { reply?: string; action?: AiAction; emotion?: string; error?: string };
       const reply = data.reply ?? data.error ?? "嗯，小鱿愣住了...";
       setMessages(prev => [...prev, { role: "assistant", content: reply }]);
       if (data.action) executeAction(data.action);
-      setEmote(randomEmote(EMOTES[4].src)); // 切回随机开心表情
+      // 根据 AI 返回的 emotion 切换表情，否则随机切换
+      const emoted = emoteByEmotion(data.emotion ?? null);
+      setEmote(emoted ?? randomEmote(EMOTION_MAP.thinking.src));
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "网络出问题了，稍后再试试吧 🥲" }]);
     } finally {
