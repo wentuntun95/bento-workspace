@@ -64,7 +64,7 @@ export function totalPoints(
 export function monthlyExchanged(transactions: Transaction[]): number {
   const month = currentYearMonth();
   return transactions
-    .filter(t => getYearMonth(t.date) === month)
+    .filter(t => t.date && getYearMonth(t.date) === month)
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 }
 
@@ -76,11 +76,11 @@ export function monthlyPoints(
 ): number {
   const month = currentYearMonth();
   const earned = taskHistory
-    .filter(e => getYearMonth(e.date) === month)
+    .filter(e => e.date && getYearMonth(e.date) === month)
     .reduce((sum, e) => sum + e.pts, 0);
   const todayEarned = (currentTasks ?? []).filter(t => t.completed).length * 10;
   const spent = transactions
-    .filter(t => getYearMonth(t.date) === month)
+    .filter(t => t.date && getYearMonth(t.date) === month)
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
   return Math.max(0, earned + todayEarned - spent);
 }
@@ -93,11 +93,11 @@ export function weeklyPoints(
 ): number {
   const week = currentISOWeek();
   const earned = taskHistory
-    .filter(e => getISOWeekFromStr(e.date) === week)
+    .filter(e => e.date && getISOWeekFromStr(e.date) === week)
     .reduce((sum, e) => sum + e.pts, 0);
   const todayEarned = (currentTasks ?? []).filter(t => t.completed).length * 10;
   const spent = transactions
-    .filter(t => getISOWeekFromStr(t.date) === week)
+    .filter(t => t.date && getISOWeekFromStr(t.date) === week)
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
   return Math.max(0, earned + todayEarned - spent);
 }
@@ -106,7 +106,7 @@ export function weeklyPoints(
 export function weeklyExchanged(transactions: Transaction[]): number {
   const week = currentISOWeek();
   return transactions
-    .filter(t => getISOWeekFromStr(t.date) === week)
+    .filter(t => t.date && getISOWeekFromStr(t.date) === week)
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 }
 

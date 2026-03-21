@@ -11,7 +11,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useWorkspaceStore, DDLItem } from "@/lib/store";
 import { monthlyPoints } from "@/lib/points";
-import { X, Mic, MicOff, Send } from "lucide-react";
+import { X, Mic, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // 14 种情绪 ↔ 14 个表情包，AI 通过 emotion 标签驱动切换
@@ -410,19 +410,25 @@ export function XiaoYouReminder() {
           <div className="flex items-center gap-1.5 px-2 py-2 border-t border-black/5">
             <button
               onPointerDown={e => { e.stopPropagation(); listening ? stopSpeech() : startSpeech(); }}
-              className={cn(
-                "flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
-                listening ? "bg-red-100 text-red-500 animate-pulse" : "bg-purple-50 text-purple-400 hover:bg-purple-100"
-              )}
-              title={listening ? "停止录音" : "语音输入"}
+              className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+              style={listening ? {
+                background: "#22c55e",
+                color: "white",
+                animation: "micBreath 1.2s ease-in-out infinite",
+                boxShadow: "0 0 0 3px rgba(34,197,94,0.3)",
+              } : {
+                background: "rgba(139,92,246,0.08)",
+                color: "#a78bfa",
+              }}
+              title={listening ? "点击停止" : "语音输入"}
             >
-              {listening ? <MicOff size={13} /> : <Mic size={13} />}
+              <Mic size={13} />
             </button>
             <input
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage(input)}
-              placeholder="问小鱿点什么..."
+              placeholder="饲养员，有什么想和我说的嘛？"
               className="flex-1 text-[12px] outline-none bg-transparent"
               disabled={loading}
             />
@@ -484,6 +490,10 @@ export function XiaoYouReminder() {
         @keyframes pulseDot {
           0%, 100% { opacity: 1; transform: scale(1); }
           50%       { opacity: 0.5; transform: scale(0.8); }
+        }
+        @keyframes micBreath {
+          0%, 100% { transform: scale(1); box-shadow: 0 0 0 3px rgba(34,197,94,0.3); }
+          50%       { transform: scale(1.12); box-shadow: 0 0 0 6px rgba(34,197,94,0.15); }
         }
       `}</style>
     </div>
