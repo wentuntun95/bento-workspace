@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
   const recentMessages = messages.slice(-30);
 
   const payload = {
-    model: "abab6.5s-chat",
+    model: "MiniMax-M2.7",
     messages: [
       { role: "system", content: buildSystemPrompt(context) },
       ...recentMessages,
