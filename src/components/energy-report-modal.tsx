@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useWorkspaceStore } from "@/lib/store";
@@ -13,16 +13,16 @@ const TYPE_CFG = {
   heal:     { dot: "#a855f7", bg: "#ede9fe", label: "治愈" },
 };
 
-// 牛皮纸配色（浅化）
+// 水彩配色（吸色自 A Room of One's Own）
 const P = {
-  bg:     "#F9EDD2",          // 米黄牛皮纸
-  spine:  "#C4965A",          // 浅棕书脊
-  header: "#B8813E",          // 浅棕书眉
-  gold:   "#E8C060",          // 柔和金
-  text:   "#5A3A10",
-  muted:  "#A07848",
-  line:   "rgba(180,140,70,0.18)",
-  green:  "#3D6B2E",
+  bg:     "#F5F2EC",          // 微暖白书页
+  spine:  "#3A8A41",          // 中绿（主色）
+  header: "#357D33",          // 深绿书眉
+  gold:   "#E0D4A0",          // 偏冷的米金，衬绿
+  text:   "#1A3820",          // 深墨绿文字
+  muted:  "#5A8060",          // 中绿灰
+  line:   "rgba(58,138,65,0.15)",
+  green:  "#2D6B45",
   red:    "#963025",
 };
 
@@ -67,11 +67,18 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
   const total   = totalPoints(taskHistory, tasks);
   const year    = new Date().getFullYear();
 
+  const [closing, setClosing] = useState(false);
+
+  const handleClose = useCallback(() => {
+    setClosing(true);
+    setTimeout(onClose, 340); // 等动画结束后再卸载
+  }, [onClose]);
+
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") handleClose(); };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
+  }, [handleClose]);
 
   const drawer = (
     <>
@@ -87,16 +94,45 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
         borderRadius: "12px 0 0 12px",
         overflow: "hidden",
         boxShadow: "-8px 0 32px rgba(0,0,0,0.18)",
-        animation: "slideInRight 0.28s cubic-bezier(0.22,1,0.36,1)",
+        animation: closing
+          ? "slideOutRight 0.35s cubic-bezier(0.22,1,0.36,1) forwards"
+          : "slideInRight  0.35s cubic-bezier(0.22,1,0.36,1)",
       }}>
-        {/* 书脊 */}
+        {/* 书脊（水彩晕染） */}
         <div style={{
-          width: 9, flexShrink: 0,
-          background: `linear-gradient(90deg, ${P.spine} 0%, #D4A870 100%)`,
-          display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 8,
+          width: 14, flexShrink: 0, position: "relative",
+          overflow: "hidden",
+          display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 10,
         }}>
+          {/* 层1：基底中绿（比原来浅一档） */}
+          <div style={{ position: "absolute", inset: 0, background: "#4A967C" }} />
+          {/* 层2：多个不规则径向晕染池，偏心位置模拟颜料自然聚集 */}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: `
+              radial-gradient(ellipse 380% 11% at 15%  3%,  #8BC0B8 0%, transparent 60%),
+              radial-gradient(ellipse 220% 6%  at 80%  9%,  #60A3C0 0%, transparent 50%),
+              radial-gradient(ellipse 310% 8%  at 40% 19%,  #98BDD0 0%, transparent 65%),
+              radial-gradient(ellipse 180% 5%  at 70% 27%,  #8BC0B8 0%, transparent 55%),
+              radial-gradient(ellipse 290% 7%  at 25% 39%,  #60A3C0 0%, transparent 58%),
+              radial-gradient(ellipse 340% 9%  at 60% 47%,  #8BC0B8 0%, transparent 68%),
+              radial-gradient(ellipse 200% 5%  at 10% 55%,  #357D33 0%, transparent 45%),
+              radial-gradient(ellipse 260% 7%  at 75% 62%,  #4A967C 0%, transparent 55%),
+              radial-gradient(ellipse 300% 8%  at 35% 71%,  #98BDD0 0%, transparent 62%),
+              radial-gradient(ellipse 180% 5%  at 85% 79%,  #60A3C0 0%, transparent 50%),
+              radial-gradient(ellipse 350% 9%  at 20% 88%,  #8BC0B8 0%, transparent 65%),
+              radial-gradient(ellipse 160% 4%  at 55% 96%,  #357D33 0%, transparent 40%)
+            `,
+            opacity: 0.9,
+          }} />
+          {/* 层3：低频湍流，让晕染边缘有机扭曲 */}
+          <div style={{
+            position: "absolute", inset: 0,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='600'%3E%3Cfilter id='d'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.035 0.015' numOctaves='3' seed='11' stitchTiles='stitch' result='n'/%3E%3CfeColorMatrix in='n' type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='14' height='600' filter='url(%23d)' opacity='0.28'/%3E%3C/svg%3E")`,
+            mixBlendMode: "soft-light",
+          }} />
           {["✦","✦","✦"].map((s, i) => (
-            <span key={i} style={{ color: P.gold, fontSize: 7, opacity: 0.8 }}>{s}</span>
+            <span key={i} style={{ position: "relative", color: P.gold, fontSize: 7, opacity: 0.7 }}>{s}</span>
           ))}
         </div>
 
@@ -109,17 +145,37 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
           display: "flex", flexDirection: "column",
           overflow: "hidden",
         }}>
-          {/* 书眉 */}
+          {/* 书眉：水彩横向晕染 */}
           <div style={{
-            background: P.header,
+            position: "relative", overflow: "hidden",
             padding: "12px 14px 10px",
             display: "flex", alignItems: "center", justifyContent: "space-between",
             flexShrink: 0,
           }}>
-            <span style={{ fontFamily: "var(--font-caveat)", fontSize: 17, fontWeight: 900, color: P.gold, letterSpacing: "0.04em" }}>
+            {/* 书眉背景层 */}
+            <div style={{ position: "absolute", inset: 0, background: "#3A8A41" }} />
+            <div style={{
+              position: "absolute", inset: 0,
+              background: `
+                radial-gradient(ellipse 40%  250% at 3%   50%, #8BC0B8 0%, transparent 55%),
+                radial-gradient(ellipse 25%  300% at 18%  50%, #60A3C0 0%, transparent 48%),
+                radial-gradient(ellipse 30%  180% at 38%  50%, #98BDD0 0%, transparent 52%),
+                radial-gradient(ellipse 20%  220% at 57%  50%, #4A967C 0%, transparent 50%),
+                radial-gradient(ellipse 18%  160% at 72%  50%, #357D33 0%, transparent 42%),
+                radial-gradient(ellipse 28%  250% at 90%  50%, #8BC0B8 0%, transparent 55%)
+              `,
+              opacity: 0.80,
+            }} />
+            <div style={{
+              position: "absolute", inset: 0,
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='44'%3E%3Cfilter id='d'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05 0.08' numOctaves='3' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='44' filter='url(%23d)' opacity='0.25'/%3E%3C/svg%3E")`,
+              mixBlendMode: "soft-light",
+            }} />
+            <span style={{ position: "relative", fontFamily: "var(--font-caveat)", fontSize: 17, fontWeight: 900, color: P.gold, letterSpacing: "0.04em" }}>
               ✦ Achievements ✦
             </span>
-            <button onClick={onClose} style={{
+            <button onClick={handleClose} style={{
+              position: "relative",
               background: "rgba(0,0,0,0.2)", border: `1px solid ${P.gold}50`,
               borderRadius: 6, width: 24, height: 24,
               display: "flex", alignItems: "center", justifyContent: "center",
@@ -156,7 +212,7 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
 
       {/* 点击页面其他区域关闭（无遮罩，透明） */}
       <div
-        onClick={onClose}
+        onClick={handleClose}
         style={{ position: "fixed", inset: 0, zIndex: 199 }}
       />
 
@@ -164,6 +220,10 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
         @keyframes slideInRight {
           from { transform: translateX(100%); }
           to   { transform: translateX(0); }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0); }
+          to   { transform: translateX(100%); }
         }
       `}</style>
     </>

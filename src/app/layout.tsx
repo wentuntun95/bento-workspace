@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Caveat } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth-context";
+import { SupabaseSyncProvider } from "@/components/supabase-sync";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -14,8 +16,8 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: "HOME · 能量回收站",
-  description: "A visually healing desktop companion for ADHD productivity",
+  title: "The Next Move",
+  description: "Where you go, you go forward.",
 };
 
 export default function RootLayout({
@@ -26,7 +28,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${caveat.variable} font-sans antialiased text-foreground bg-background`}>
-        {children}
+        <AuthProvider>
+          <SupabaseSyncProvider />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

@@ -110,6 +110,49 @@ export function weeklyExchanged(transactions: Transaction[]): number {
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 }
 
+// ── 不含支出的纯任务积分（能量树专用）────────────────────────────────────────
+
+/** 今日积分（今天完成任务 × 10，未归档实时） */
+export function todayEarned(currentTasks: { completed: boolean }[]): number {
+  return currentTasks.filter(t => t.completed).length * 10;
+}
+
+/** 本周累计积分（不含支出：归档 + 今日已完成） */
+export function weeklyEarned(
+  taskHistory: TaskHistoryEntry[],
+  currentTasks: { completed: boolean }[]
+): number {
+  const week = currentISOWeek();
+  const archived = taskHistory
+    .filter(e => getISOWeekFromStr(e.date) === week)
+    .reduce((sum, e) => sum + e.pts, 0);
+  const today = currentTasks.filter(t => t.completed).length * 10;
+  return archived + today;
+}
+
+/** 本月累计积分（不含支出：归档 + 今日已完成） */
+export function monthlyEarned(
+  taskHistory: TaskHistoryEntry[],
+  currentTasks: { completed: boolean }[]
+): number {
+  const month = currentYearMonth();
+  const archived = taskHistory
+    .filter(e => getYearMonth(e.date) === month)
+    .reduce((sum, e) => sum + e.pts, 0);
+  const today = currentTasks.filter(t => t.completed).length * 10;
+  return archived + today;
+}
+
+/** 历史总积分（不含支出：全部归档 + 今日） */
+export function totalEarned(
+  taskHistory: TaskHistoryEntry[],
+  currentTasks: { completed: boolean }[]
+): number {
+  const archived = taskHistory.reduce((sum, e) => sum + e.pts, 0);
+  const today = currentTasks.filter(t => t.completed).length * 10;
+  return archived + today;
+}
+
 /** 按 ISO 周聚合 taskHistory（用于能量周报） */
 export interface WeeklyReport {
   week: string;       // "YYYY-WW"
@@ -143,10 +186,9 @@ export function weeklyReports(
 
   for (const t of transactions) {
     const week = getISOWeekFromStr(t.date);
-    const existing = map.get(week);
-    if (existing) {
-      map.set(week, { ...existing, spent: existing.spent + Math.abs(t.amount) });
-    }
+    // ?? 确保：即使当周没有任务归档，消费也能被记录
+    const existing = map.get(week) ?? { week, pts: 0, spent: 0, survive: 0, creation: 0, fun: 0, heal: 0 };
+    map.set(week, { ...existing, spent: existing.spent + Math.abs(t.amount) });
   }
 
   // 实时合并今日未归档任务

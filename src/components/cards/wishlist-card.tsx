@@ -227,7 +227,11 @@ export function WishlistCard() {
     setChestCost(null);
   };
 
-  const displayList = [...wishlist].reverse();
+  const COLS = 4;
+  const _oldest = [...wishlist].reverse();
+  const _chunks: typeof wishlist[] = [];
+  for (let i = 0; i < _oldest.length; i += COLS) _chunks.push(_oldest.slice(i, i + COLS));
+  const displayList = _chunks.reverse().flat();
 
   return (
     <>
@@ -250,7 +254,7 @@ export function WishlistCard() {
         </div>
 
         {/* ── 心愿格子，从下往上 ── */}
-        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none flex flex-col-reverse">
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none flex flex-col justify-end">
           {displayList.length === 0 && !adding ? (
             <div className="flex items-center justify-center py-6">
               <span className="text-[11px] text-foreground/30">许个愿吧 ✨</span>
@@ -262,6 +266,7 @@ export function WishlistCard() {
               gridAutoFlow: "dense",
               gap: 3,
               alignContent: "end",
+              minHeight: "100%",
             }}>
               {displayList.map(w => (
                 <WishTile key={w.id} w={w} points={pts}

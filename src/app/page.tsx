@@ -4,21 +4,27 @@ import { useRef, useState, useEffect } from "react";
 import { BentoGrid } from "@/components/bento-grid";
 import { XiaoYouReminder } from "@/components/xiao-you-reminder";
 import { EnergyReportModal } from "@/components/energy-report-modal";
+import { LoginModal } from "@/components/login-modal";
 import { useWorkspaceStore } from "@/lib/store";
 import { monthlyPoints } from "@/lib/points";
+import { useAuth } from "@/lib/auth-context";
 
 function Header({
-  onNav, currentPage, totalPages, onReport,
+  onNav, currentPage, totalPages, onReport, onLogin, onApply,
 }: {
   onNav: (n: number) => void;
   currentPage: number;
   totalPages: number;
   onReport: () => void;
+  onLogin: () => void;
+  onApply: () => void;
 }) {
+  const { user, mode, signOut } = useAuth();
   const tasks       = useWorkspaceStore((s) => s.tasks);
   const taskHistory  = useWorkspaceStore((s) => s.taskHistory);
   const transactions = useWorkspaceStore((s) => s.transactions);
   const pts = monthlyPoints(taskHistory, transactions, tasks);
+  void pts; // 暂保留，后续用
 
   return (
     <header className="flex-shrink-0 flex items-center justify-between px-8 pt-6 pb-3">
@@ -60,26 +66,52 @@ function Header({
         </span>
       </div>
 
-      {/* Right: 成就按钮 */}
-      <button
-        onClick={onReport}
-        title="成就周报"
-        style={{
-          display: "flex", alignItems: "center", gap: 4,
-          fontFamily: "var(--font-caveat)",
-          fontSize: 13, fontWeight: 700,
-          color: "#a16207",
-          background: "rgba(250,204,21,0.12)",
-          border: "1px solid rgba(250,204,21,0.35)",
-          borderRadius: 9, padding: "5px 12px",
-          cursor: "pointer",
-          transition: "background 0.15s",
-        }}
-        onMouseEnter={e => (e.currentTarget.style.background = "rgba(250,204,21,0.28)")}
-        onMouseLeave={e => (e.currentTarget.style.background = "rgba(250,204,21,0.12)")}
-      >
-        ⭐ 成就
-      </button>
+      {/* Right: 成就 + 鉴权按钮 */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {/* 匿名用户显示登录/申请入口 */}
+        {mode === "anon" && (
+          <>
+            <button onClick={onLogin} style={{
+              fontSize: 11, color: "#9A7850", background: "none",
+              border: "1px solid rgba(180,140,70,0.3)", borderRadius: 7,
+              padding: "4px 10px", cursor: "pointer",
+            }}>
+              登录
+            </button>
+            <button onClick={onApply} style={{
+              fontSize: 11, color: "#9A7850", background: "none",
+              border: "1px solid rgba(180,140,70,0.3)", borderRadius: 7,
+              padding: "4px 10px", cursor: "pointer",
+            }}>
+              申请账号
+            </button>
+          </>
+        )}
+        {/* 已登录用户 */}
+        {mode === "authenticated" && user && (
+          <span style={{ fontSize: 11, color: "#9A7850", cursor: "pointer" }}
+            onClick={signOut} title="点击登出">
+            {user.email?.split("@")[0]} ·登出
+          </span>
+        )}
+        {/* 成就按钮 */}
+        <button
+          onClick={onReport}
+          title="成就周报"
+          style={{
+            display: "flex", alignItems: "center", gap: 4,
+            fontFamily: "var(--font-caveat)",
+            fontSize: 13, fontWeight: 700,
+            color: "#a16207",
+            background: "rgba(250,204,21,0.12)",
+            border: "1px solid rgba(250,204,21,0.35)",
+            borderRadius: 9, padding: "5px 12px",
+            cursor: "pointer",
+          }}
+        >
+          ⭐ 成就
+        </button>
+      </div>
     </header>
   );
 }
@@ -88,6 +120,9 @@ export default function Home() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [page, setPage]             = useState(0);
   const [showReport, setShowReport] = useState(false);
+  const [showLogin, setShowLogin]   = useState(false);
+  const [loginView, setLoginView]   = useState<"login" | "apply">("login");
+  const { mode, loading }           = useAuth();
   const checkAndResetDaily   = useWorkspaceStore((s) => s.checkAndResetDaily);
   const checkAndResetWeekly  = useWorkspaceStore((s) => s.checkAndResetWeekly);
 
@@ -113,9 +148,27 @@ export default function Home() {
     return () => el.removeEventListener("scrollend", handler);
   }, []);
 
+  if (loading) return null; // 等待 session 检查完成
+
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col">
-      <Header onNav={navTo} currentPage={page} totalPages={2} onReport={() => setShowReport(true)} />
+      {/* 首次访问弹窗 (mode=null) */}
+      {mode === null && <LoginModal />}
+      {/* 手动触发的登录弹窗（匿名用户点按钮） */}
+      {showLogin && mode === "anon" && (
+        <LoginModal
+          canClose
+          initialView={loginView}
+          onClose={() => setShowLogin(false)}
+        />
+      )}
+
+      <Header
+        onNav={navTo} currentPage={page} totalPages={2}
+        onReport={() => setShowReport(true)}
+        onLogin={() => { setLoginView("login"); setShowLogin(true); }}
+        onApply={() => { setLoginView("apply"); setShowLogin(true); }}
+      />
 
       {/* Horizontal scroll canvas */}
       <div

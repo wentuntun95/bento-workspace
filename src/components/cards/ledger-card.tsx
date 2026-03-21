@@ -200,8 +200,13 @@ export function LedgerCard() {
     setEditId(null); setEditPreview(null);
   };
 
-  // 从下往上：最新条目在最后，grid dense 从上填满
-  const displayList = [...transactions].reverse();
+  // 从下往上俄罗斯方块：最旧行在底部，新行叠加到上方
+  // 1. 转为最旧在前；2. 按 4 个分行；3. 反转行顺序；4. 展平
+  const COLS = 4;
+  const _oldest = [...transactions].reverse();
+  const _chunks: typeof transactions[] = [];
+  for (let i = 0; i < _oldest.length; i += COLS) _chunks.push(_oldest.slice(i, i + COLS));
+  const displayList = _chunks.reverse().flat();
 
   return (
     <div className="flex flex-col h-full w-full relative" onPointerDown={e => e.stopPropagation()}>
@@ -221,7 +226,7 @@ export function LedgerCard() {
       </div>
 
       {/* ── 格子画廊（从下往上 = flex-col-reverse 外层 + 内部 grid dense）── */}
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none flex flex-col-reverse">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none flex flex-col justify-end">
         {displayList.length === 0 && !adding ? (
           <div className="flex items-center justify-center py-6">
             <span className="text-[11px] text-foreground/30">暂无记录</span>
@@ -232,7 +237,8 @@ export function LedgerCard() {
             gridTemplateColumns: "repeat(4, 1fr)",
             gridAutoFlow: "dense",
             gap: 3,
-            alignContent: "end",  // 内容贴下方
+            alignContent: "end",
+            minHeight: "100%",  // 必须：让 alignContent:end 真正生效
           }}>
             {displayList.map(t => (
               <Tile key={t.id} t={t}

@@ -166,6 +166,18 @@ export function ImageStickerGrid() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageCardExpanded]);
 
+  // 刷新后兜底：有图但浮动状态丢失 → 延迟到卡片 mounted 再恢复位置
+  useEffect(() => {
+    if (activeImageUrl && !imageCardExpanded) {
+      const t = setTimeout(() => {
+        const rect = cardRef.current?.getBoundingClientRect();
+        setExpanded(true, rect?.left ?? 100, rect?.top ?? 100, rect?.width ?? 300);
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── 上传处理（上传成功 → 直接弹出浮动）─────────────────────────────────────
   const triggerUpload = useCallback(() => {
     setShowDropdown(false);
