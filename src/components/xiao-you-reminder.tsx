@@ -14,33 +14,33 @@ import { monthlyPoints } from "@/lib/points";
 import { X, Mic, MicOff, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-
-// ─── 情绪·表情包系统 ─────────────────────────────────────────
-// emotion: AI 返回的情绪标签 → 对应表情图
-// 用户可根据标签补充新的图片文件
+// 14 种情绪 ↔ 14 个表情包，AI 通过 emotion 标签驱动切换
 const EMOTION_MAP: Record<string, { src: string; label: string }> = {
-  greeting:    { src: "/squid/wusopu.png",      label: "打招呼" },   // ← 现有图
-  happy:       { src: "/squid/zeixiao.png",     label: "开心" },      // ← 现有图
-  mischievous: { src: "/squid/zeixiao.png",     label: "坏坏的" },    // ← 现有图
-  excited:     { src: "/squid/liukoushui.png",  label: "兴奋" },      // ← 现有图
-  thinking:    { src: "/squid/xiongdaidai.png", label: "思考中" },    // ← 现有图
-  confused:    { src: "/squid/xiongdaidai.png", label: "困惑" },      // ← 现有图
-  sad:         { src: "/squid/daku.png",        label: "难过" },      // ← 现有图
-  sulking:     { src: "/squid/shengmenqi.png",  label: "生闷气" },    // ← 现有图
-  urgent:      { src: "/squid/daku.png",        label: "紧张" },      // ← 现有图
-  success:     { src: "/squid/zeixiao.png",     label: "成功" },      // 可替换为 /squid/success.png
-  encouraging: { src: "/squid/wusopu.png",      label: "加油" },      // 可替换为 /squid/encouraging.png
-  sleepy:      { src: "/squid/xiongdaidai.png", label: "困了" },      // 可替换为 /squid/sleepy.png
+  greeting:    { src: "/squid/喜欢.png",      label: "打招呼" },
+  happy:       { src: "/squid/嘻嘻.png",      label: "开心" },
+  mischievous: { src: "/squid/嬉皮笑脸.png",  label: "坏坏的" },
+  excited:     { src: "/squid/兴奋.png",      label: "兴奋" },
+  obsessed:    { src: "/squid/沉迷.png",      label: "沉迷" },
+  thinking:    { src: "/squid/呆住.png",      label: "思考中" },
+  confused:    { src: "/squid/眼巴巴.png",    label: "困惑" },
+  sad:         { src: "/squid/可怜.png",      label: "难过" },
+  sulking:     { src: "/squid/委屈.png",      label: "委屈" },
+  complaining: { src: "/squid/抱怨.png",      label: "抱怨" },
+  urgent:      { src: "/squid/生气.png",      label: "生气" },
+  success:     { src: "/squid/窃喜.png",      label: "窃喜" },
+  sleepy:      { src: "/squid/闭眼不看.png",  label: "闭眼不看" },
+  hungry:      { src: "/squid/饿.png",        label: "饿" },
 };
 
-// 随机待机表情池（weight 越高越常出现）
+// 随机待机表情池（偏向愉快情绪，weight 越高越常出现）
 const IDLE_EMOTES = [
-  { src: "/squid/wusopu.png",      label: "乌索普",  weight: 4 },
-  { src: "/squid/zeixiao.png",     label: "贼笑",    weight: 3 },
-  { src: "/squid/liukoushui.png",  label: "流口水",  weight: 2 },
-  { src: "/squid/xiongdaidai.png", label: "熊呆呆",  weight: 2 },
-  { src: "/squid/shengmenqi.png",  label: "生闷气",  weight: 1 },
-  { src: "/squid/daku.png",        label: "哭哭",    weight: 1 },
+  { src: "/squid/喜欢.png",     label: "喜欢",    weight: 4 },
+  { src: "/squid/嘻嘻.png",     label: "嘻嘻",    weight: 3 },
+  { src: "/squid/沉迷.png",     label: "沉迷",    weight: 2 },
+  { src: "/squid/嬉皮笑脸.png", label: "嬉皮笑脸",weight: 2 },
+  { src: "/squid/兴奋.png",     label: "兴奋",    weight: 2 },
+  { src: "/squid/呆住.png",     label: "呆住",    weight: 1 },
+  { src: "/squid/饿.png",       label: "饿",      weight: 1 },
 ] as const;
 
 function randomEmote(exclude?: string) {
