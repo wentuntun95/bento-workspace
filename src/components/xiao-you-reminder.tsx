@@ -1,30 +1,30 @@
 "use client";
 
 /**
- * XiaoYou — 小鱿桌面宠物
- * - 随机出现在屏幕角落
- * - 可拖动（指针事件）
- * - 随机切换表情包（闲置 + 点击 + 自动轮换）
- * - DDL 前 30 min 弹气泡提醒，可手动关闭
+ * XiaoYou — 小鱿桌面宠物 + AI 助手
+ * - 随机出现在屏幕角落，可拖动，随机切换表情包
+ * - DDL 前 30min 弹气泡提醒
+ * - 点击打开 AI 聊天面板（MiniMax 2.7 + Web Speech API）
+ * - 支持操作：addTask / addTransaction / addWish / addDdl
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useWorkspaceStore, DDLItem } from "@/lib/store";
-import { X } from "lucide-react";
+import { monthlyPoints } from "@/lib/points";
+import { X, Mic, MicOff, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+
 
 // ─── 表情包配置 ───────────────────────────────────────────────
 const EMOTES = [
-  { src: "/squid/wusopu.png", label: "乌索普", weight: 4 },
-  { src: "/squid/zeixiao.png", label: "贼笑", weight: 3 },
-  { src: "/squid/liukoushui.png", label: "流口水", weight: 2 },
-  { src: "/squid/xiongdaidai.png", label: "熊呆呆", weight: 2 },
-  { src: "/squid/shengmenqi.png", label: "生闷气", weight: 1 },
-  { src: "/squid/daku.png", label: "哭哭", weight: 1 },
+  { src: "/squid/wusopu.png",     label: "乌索普",  weight: 4 },
+  { src: "/squid/zeixiao.png",    label: "贼笑",    weight: 3 },
+  { src: "/squid/liukoushui.png", label: "流口水",  weight: 2 },
+  { src: "/squid/xiongdaidai.png",label: "熊呆呆",  weight: 2 },
+  { src: "/squid/shengmenqi.png", label: "生闷气",  weight: 1 },
+  { src: "/squid/daku.png",       label: "哭哭",    weight: 1 },
 ] as const;
 
-// 按权重随机抽一个表情
-const totalWeight = EMOTES.reduce((s, e) => s + e.weight, 0);
 function randomEmote(exclude?: string) {
   const pool = EMOTES.filter(e => e.src !== exclude);
   const w = pool.reduce((s, e) => s + e.weight, 0);
@@ -33,7 +33,6 @@ function randomEmote(exclude?: string) {
   return pool[0];
 }
 
-// ─── 随机角落坐标（距边缘 16–80px 随机偏移） ────────────────
 const CORNERS = ["TL", "TR", "BL", "BR"] as const;
 type Corner = typeof CORNERS[number];
 function cornerPos(corner: Corner, W: number, H: number, size = 80) {
@@ -43,7 +42,6 @@ function cornerPos(corner: Corner, W: number, H: number, size = 80) {
   return { x, y };
 }
 
-// ─── DDL 时间差（分钟） ───────────────────────────────────────
 function minutesUntil(ddl: DDLItem): number {
   if (!ddl.time) return Infinity;
   const [h, m] = ddl.time.split(":").map(Number);
@@ -53,59 +51,117 @@ function minutesUntil(ddl: DDLItem): number {
   return Math.floor((target.getTime() - Date.now()) / 60000);
 }
 
-// ─── Component ────────────────────────────────────────────────
+// ─── Chat types ───────────────────────────────────────────────
+interface ChatMsg {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface AiAction {
+  action: string;
+  type?: string;
+  title?: string;
+  pts?: number;
+  cost?: number;
+  date?: string;
+  time?: string;
+}
+
+// ─── Web Speech API hook ──────────────────────────────────────
+function useSpeechRecognition(onResult: (text: string) => void) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recRef = useRef<any>(null);
+  const [listening, setListening] = useState(false);
+
+  const start = useCallback(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const SpeechRec = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+    if (!SpeechRec) { alert("你的浏览器不支持语音识别，请使用 Chrome 或 Edge"); return; }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rec: any = new SpeechRec();
+    rec.lang = "zh-CN";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onresult = (e: { results: { [k: number]: { [k: number]: { transcript: string } } } }) => {
+      const text = e.results[0][0].transcript;
+      onResult(text);
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    rec.start();
+    recRef.current = rec;
+    setListening(true);
+  }, [onResult]);
+
+  const stop = useCallback(() => {
+    recRef.current?.stop();
+    setListening(false);
+  }, []);
+
+  return { listening, start, stop };
+}
+
+// ─── Main component ───────────────────────────────────────────
 export function XiaoYouReminder() {
-  const ddls = useWorkspaceStore(s => s.ddls);
+  const {
+    ddls, tasks, taskHistory, transactions,
+    addTask, addTransaction, addWish, addDdl,
+  } = useWorkspaceStore();
+
+  const pts = monthlyPoints(taskHistory, transactions, tasks);
 
   // Position
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [emote, setEmote] = useState(() => randomEmote());
-
-  // Drag state
   const dragRef = useRef(false);
   const offsetRef = useRef({ x: 0, y: 0 });
   const posRef = useRef({ x: 0, y: 0 });
 
-  // Reminder state
+  // DDL alert
   const [alert, setAlert] = useState<DDLItem | null>(null);
   const [minsLeft, setMinsLeft] = useState(0);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [alertVisible, setAlertVisible] = useState(false);
 
+  // Chat panel
+  const [chatOpen, setChatOpen] = useState(false);
+  const [messages, setMessages] = useState<ChatMsg[]>([
+    { role: "assistant", content: "嗨！我是小鱿~ 可以帮你加任务、记账、查 DDL，用语音或文字告诉我就好 🦑" },
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+
   // Hover
   const [hovered, setHovered] = useState(false);
 
-  // Init position to random corner
+  // Init position
   useEffect(() => {
     const W = window.innerWidth, H = window.innerHeight;
     const corner = CORNERS[Math.floor(Math.random() * CORNERS.length)];
     const p = cornerPos(corner, W, H);
-    setPos(p);
-    posRef.current = p;
+    setPos(p); posRef.current = p;
   }, []);
 
-  // Auto-rotate expression every 8s when idle
+  // Auto-rotate emote
   useEffect(() => {
     const id = setInterval(() => {
-      if (!dragRef.current) setEmote(prev => randomEmote(prev.src));
+      if (!dragRef.current && !chatOpen) setEmote(prev => randomEmote(prev.src));
     }, 8000);
     return () => clearInterval(id);
-  }, []);
+  }, [chatOpen]);
 
   // DDL watch
   const checkDdl = useCallback(() => {
     for (const ddl of ddls) {
       const mins = minutesUntil(ddl);
       if (mins >= 0 && mins <= 30 && !dismissed.has(ddl.id)) {
-        setAlert(ddl);
-        setMinsLeft(mins);
-        setAlertVisible(true);
-        // 切成"凶呆呆"或"打哭"表情
+        setAlert(ddl); setMinsLeft(mins); setAlertVisible(true);
         setEmote(mins <= 5 ? EMOTES[5] : EMOTES[3]);
         return;
       }
     }
-    // Check if current alert is still valid
     setAlert(prev => {
       if (!prev) return null;
       const mins = minutesUntil(prev);
@@ -120,14 +176,84 @@ export function XiaoYouReminder() {
     return () => clearInterval(id);
   }, [checkDdl]);
 
-  // ── Drag (pointer events) ─────────────────────────────────
+  // Scroll to bottom
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // ── Execute AI action ──────────────────────────────────────
+  function executeAction(action: AiAction) {
+    switch (action.action) {
+      case "add_task":
+        if (action.title && action.type) {
+          addTask(action.title, action.type as "survive"|"creation"|"fun"|"heal");
+        }
+        break;
+      case "add_transaction":
+        if (action.title && action.pts) {
+          addTransaction(action.title, -Math.abs(action.pts), undefined);
+        }
+        break;
+      case "add_wish":
+        if (action.title && action.cost) {
+          addWish(action.title, action.cost, undefined);
+        }
+        break;
+      case "add_ddl":
+        if (action.title && action.date) {
+          addDdl(action.title, new Date(action.date), action.time ?? "", undefined);
+        }
+        break;
+    }
+  }
+
+  // ── Send message to AI ──────────────────────────────────────
+  async function sendMessage(text: string) {
+    if (!text.trim() || loading) return;
+    const userMsg: ChatMsg = { role: "user", content: text.trim() };
+    const next = [...messages, userMsg].slice(-10);
+    setMessages(next);
+    setInput("");
+    setLoading(true);
+    setEmote(EMOTES[4]); // 生闷气 = 思考中
+
+    const context = {
+      tasks: tasks.map(t => ({ type: t.type, text: t.text, completed: t.completed })),
+      ddls: ddls.map(d => ({ title: d.title, date: d.date, time: d.time })),
+      pts,
+      currentTime: new Date().toLocaleString("zh-CN"),
+    };
+
+    try {
+      const res = await fetch("/api/xiaoyu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: next, context }),
+      });
+      const data = await res.json() as { reply?: string; action?: AiAction; error?: string };
+      const reply = data.reply ?? data.error ?? "嗯，小鱿愣住了...";
+      setMessages(prev => [...prev, { role: "assistant", content: reply }]);
+      if (data.action) executeAction(data.action);
+      setEmote(randomEmote(EMOTES[4].src)); // 切回随机开心表情
+    } catch {
+      setMessages(prev => [...prev, { role: "assistant", content: "网络出问题了，稍后再试试吧 🥲" }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Speech ────────────────────────────────────────────────
+  const { listening, start: startSpeech, stop: stopSpeech } = useSpeechRecognition(
+    (text) => sendMessage(text)
+  );
+
+  // ── Drag ──────────────────────────────────────────────────
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (!pos) return;
+    if (!pos || chatOpen) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     dragRef.current = true;
     offsetRef.current = { x: e.clientX - posRef.current.x, y: e.clientY - posRef.current.y };
   }
-
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (!dragRef.current) return;
     const nx = e.clientX - offsetRef.current.x;
@@ -135,34 +261,30 @@ export function XiaoYouReminder() {
     posRef.current = { x: nx, y: ny };
     setPos({ x: nx, y: ny });
   }
-
   function onPointerUp() {
     if (!dragRef.current) return;
     dragRef.current = false;
-    // Snap to nearest corner
     const W = window.innerWidth, H = window.innerHeight;
     const cx = posRef.current.x, cy = posRef.current.y;
     const corner: Corner = `${cy < H / 2 ? "T" : "B"}${cx < W / 2 ? "L" : "R"}` as Corner;
     const snap = cornerPos(corner, W, H);
     posRef.current = snap;
     setPos(snap);
-    // Playful expression change on drop
     setEmote(randomEmote(emote.src));
   }
-
   function onClick() {
-    if (!dragRef.current) setEmote(prev => randomEmote(prev.src));
+    if (!dragRef.current) {
+      setChatOpen(o => !o);
+      setAlertVisible(false);
+    }
   }
-
   function dismissAlert() {
     if (alert) setDismissed(prev => new Set([...prev, alert.id]));
-    setAlertVisible(false);
-    setAlert(null);
+    setAlertVisible(false); setAlert(null);
     setEmote(randomEmote(emote.src));
   }
 
   if (!pos) return null;
-
   const urgent = minsLeft <= 5;
 
   return (
@@ -177,14 +299,12 @@ export function XiaoYouReminder() {
       }}
     >
       {/* DDL 提醒气泡 */}
-      {alertVisible && alert && (
-        <div
-          className={cn(
-            "absolute bottom-[90px] right-0 w-52 rounded-2xl rounded-br-sm px-3.5 py-3",
-            "bg-white/96 border border-amber-200/70 shadow-xl backdrop-blur-xl",
-            "animate-[xiaoYouIn_0.4s_cubic-bezier(0.34,1.4,0.64,1)_both]"
-          )}
-        >
+      {alertVisible && alert && !chatOpen && (
+        <div className={cn(
+          "absolute bottom-[90px] right-0 w-52 rounded-2xl rounded-br-sm px-3.5 py-3",
+          "bg-white/96 border border-amber-200/70 shadow-xl backdrop-blur-xl",
+          "animate-[xiaoYouIn_0.4s_cubic-bezier(0.34,1.4,0.64,1)_both]"
+        )}>
           <div className="flex items-center justify-between mb-1.5">
             <span className={cn("text-[11px] font-black tracking-wide", urgent ? "text-red-500" : "text-amber-500")}>
               {urgent ? "⚡ 快了快了！" : "⏰ 快到啦！"}
@@ -198,8 +318,79 @@ export function XiaoYouReminder() {
             <span>{minsLeft === 0 ? "现在就是截止时间！" : `还有 ${minsLeft} 分钟`}</span>
             {alert.contact && <span>👤 {alert.contact}</span>}
           </div>
-          {/* Bubble tail */}
           <div className="absolute -bottom-[8px] right-5 w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-t-[8px] border-t-white/96" />
+        </div>
+      )}
+
+      {/* ── 聊天面板 ── */}
+      {chatOpen && (
+        <div
+          className="absolute bottom-[90px] right-0 w-72 rounded-2xl shadow-2xl border border-black/8 overflow-hidden"
+          style={{ background: "rgba(255,255,255,0.97)", backdropFilter: "blur(16px)" }}
+          onPointerDown={e => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-black/5"
+               style={{ background: "rgba(240,233,255,0.8)" }}>
+            <div className="flex items-center gap-2">
+              <img src={emote.src} alt="小鱿" className="w-6 h-6 object-contain" />
+              <span style={{ fontFamily: "var(--font-caveat)", fontSize: 15, fontWeight: 700, color: "#4c1d95" }}>
+                小鱿
+              </span>
+              {loading && <span className="text-[10px] text-purple-400 animate-pulse">思考中...</span>}
+            </div>
+            <button onClick={() => setChatOpen(false)} className="text-foreground/30 hover:text-foreground/70 transition-colors">
+              <X size={13} />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div className="h-56 overflow-y-auto p-3 flex flex-col gap-2 scrollbar-none">
+            {messages.map((m, i) => (
+              <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-3 py-2 text-[12px] leading-relaxed",
+                    m.role === "user"
+                      ? "bg-purple-100 text-purple-900 rounded-br-sm"
+                      : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                  )}
+                >
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            <div ref={chatBottomRef} />
+          </div>
+
+          {/* Input */}
+          <div className="flex items-center gap-1.5 px-2 py-2 border-t border-black/5">
+            <button
+              onPointerDown={e => { e.stopPropagation(); listening ? stopSpeech() : startSpeech(); }}
+              className={cn(
+                "flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
+                listening ? "bg-red-100 text-red-500 animate-pulse" : "bg-purple-50 text-purple-400 hover:bg-purple-100"
+              )}
+              title={listening ? "停止录音" : "语音输入"}
+            >
+              {listening ? <MicOff size={13} /> : <Mic size={13} />}
+            </button>
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage(input)}
+              placeholder="问小鱿点什么..."
+              className="flex-1 text-[12px] outline-none bg-transparent"
+              disabled={loading}
+            />
+            <button
+              onClick={() => sendMessage(input)}
+              disabled={!input.trim() || loading}
+              className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center bg-purple-100 text-purple-500 hover:bg-purple-200 disabled:opacity-40 transition-colors"
+            >
+              <Send size={12} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -212,12 +403,13 @@ export function XiaoYouReminder() {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         className={cn(
-          "relative w-20 h-20 cursor-grab active:cursor-grabbing select-none",
+          "relative w-20 h-20 cursor-pointer select-none",
           "transition-transform duration-200",
           hovered && !dragRef.current && "scale-110",
+          chatOpen && "scale-105",
         )}
         style={{ animation: dragRef.current ? "none" : "squidBob 3s ease-in-out infinite" }}
-        title={`小鱿 · ${emote.label} · 点击换表情`}
+        title="小鱿 · 点击打开对话"
       >
         <img
           src={emote.src}
@@ -226,6 +418,11 @@ export function XiaoYouReminder() {
           style={{ animation: "breathe 3s ease-in-out infinite" }}
           draggable={false}
         />
+        {/* 聊天指示小圆点 */}
+        {!chatOpen && (
+          <div className="absolute top-0 right-0 w-3 h-3 rounded-full bg-purple-400 border-2 border-white"
+               style={{ animation: "pulseDot 2s ease-in-out infinite" }} />
+        )}
       </div>
 
       <style>{`
@@ -240,6 +437,10 @@ export function XiaoYouReminder() {
         @keyframes xiaoYouIn {
           from { opacity: 0; transform: scale(0.7) translateY(10px); }
           to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes pulseDot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%       { opacity: 0.5; transform: scale(0.8); }
         }
       `}</style>
     </div>
