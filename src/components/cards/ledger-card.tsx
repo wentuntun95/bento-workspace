@@ -200,13 +200,11 @@ export function LedgerCard() {
     setEditId(null); setEditPreview(null);
   };
 
-  // 从下往上俄罗斯方块：最旧行在底部，新行叠加到上方
-  // 1. 转为最旧在前；2. 按 4 个分行；3. 反转行顺序；4. 展平
+  // flex 行分组：4个一行，rows[0](最旧)由 flex-col-reverse 置底
   const COLS = 4;
-  const _oldest = [...transactions].reverse();
-  const _chunks: typeof transactions[] = [];
-  for (let i = 0; i < _oldest.length; i += COLS) _chunks.push(_oldest.slice(i, i + COLS));
-  const displayList = _chunks.reverse().flat();
+  const ordered = [...transactions].reverse(); // [oldest...newest]
+  const rows: (typeof transactions)[] = [];
+  for (let i = 0; i < ordered.length; i += COLS) rows.push(ordered.slice(i, i + COLS));
 
   return (
     <div className="flex flex-col h-full w-full relative" onPointerDown={e => e.stopPropagation()}>
@@ -225,28 +223,29 @@ export function LedgerCard() {
         </div>
       </div>
 
-      {/* ── 格子画廊（从下往上 = flex-col-reverse 外层 + 内部 grid dense）── */}
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none flex flex-col justify-end">
-        {displayList.length === 0 && !adding ? (
-          <div className="flex items-center justify-center py-6">
+      {/* ── 格子画廔：flex-col-reverse 把 rows[0](最旧)置于视觉底部 ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none flex flex-col-reverse">
+        {rows.length === 0 && !adding ? (
+          <div className="flex items-center py-2">
             <span className="text-[11px] text-foreground/30">暂无记录</span>
           </div>
         ) : (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gridAutoFlow: "dense",
-            gap: 3,
-            alignContent: "end",
-            minHeight: "100%",  // 必须：让 alignContent:end 真正生效
-          }}>
-            {displayList.map(t => (
-              <Tile key={t.id} t={t}
-                onDelete={() => removeTransaction(t.id)}
-                onEdit={() => openEdit(t)}
-              />
-            ))}
-          </div>
+          rows.map((row, ri) => (
+            <div key={ri} style={{ display: "flex", gap: 3 }}>
+              {row.map(t => (
+                <div key={t.id} style={{ flex: 1 }}>
+                  <Tile t={t}
+                    onDelete={() => removeTransaction(t.id)}
+                    onEdit={() => openEdit(t)}
+                  />
+                </div>
+              ))}
+              {/* 未b进位 */}
+              {Array.from({ length: COLS - row.length }).map((_, j) => (
+                <div key={`pad-${j}`} style={{ flex: 1 }} />
+              ))}
+            </div>
+          ))
         )}
       </div>
 

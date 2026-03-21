@@ -323,6 +323,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             title: `[兑换] ${wish.title}`,
             amount: -wish.cost,
             date: new Date().toISOString(),
+            imageUrl: wish.imageUrl,   // ← 同步心愿图片到 Ledger
           }, ...state.transactions],
         };
       }),

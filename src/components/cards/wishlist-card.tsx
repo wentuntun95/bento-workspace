@@ -228,10 +228,9 @@ export function WishlistCard() {
   };
 
   const COLS = 4;
-  const _oldest = [...wishlist].reverse();
-  const _chunks: typeof wishlist[] = [];
-  for (let i = 0; i < _oldest.length; i += COLS) _chunks.push(_oldest.slice(i, i + COLS));
-  const displayList = _chunks.reverse().flat();
+  const ordered = [...wishlist].reverse(); // [oldest...newest]
+  const rows: (typeof wishlist)[] = [];
+  for (let i = 0; i < ordered.length; i += COLS) rows.push(ordered.slice(i, i + COLS));
 
   return (
     <>
@@ -253,29 +252,29 @@ export function WishlistCard() {
           </div>
         </div>
 
-        {/* ── 心愿格子，从下往上 ── */}
-        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none flex flex-col justify-end">
-          {displayList.length === 0 && !adding ? (
-            <div className="flex items-center justify-center py-6">
+        {/* ── 心愿格子：flex-col-reverse 把 rows[0](最旧)置于底部 ── */}
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none flex flex-col-reverse">
+          {rows.length === 0 && !adding ? (
+            <div className="flex items-center py-2">
               <span className="text-[11px] text-foreground/30">许个愿吧 ✨</span>
             </div>
           ) : (
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gridAutoFlow: "dense",
-              gap: 3,
-              alignContent: "end",
-              minHeight: "100%",
-            }}>
-              {displayList.map(w => (
-                <WishTile key={w.id} w={w} points={pts}
-                  onRedeem={() => handleRedeem(w)}
-                  onEdit={() => openEdit(w)}
-                  onDelete={() => removeWish(w.id)}
-                />
-              ))}
-            </div>
+            rows.map((row, ri) => (
+              <div key={ri} style={{ display: "flex", gap: 3 }}>
+                {row.map(w => (
+                  <div key={w.id} style={{ flex: 1 }}>
+                    <WishTile w={w} points={pts}
+                      onRedeem={() => handleRedeem(w)}
+                      onEdit={() => openEdit(w)}
+                      onDelete={() => removeWish(w.id)}
+                    />
+                  </div>
+                ))}
+                {Array.from({ length: COLS - row.length }).map((_, j) => (
+                  <div key={`pad-${j}`} style={{ flex: 1 }} />
+                ))}
+              </div>
+            ))
           )}
         </div>
 

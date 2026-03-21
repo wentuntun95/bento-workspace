@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, Fragment } from "react";
 import { Plus, X, Check, Camera, Pencil, Trash2 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useWorkspaceStore } from "@/lib/store";
@@ -279,10 +279,16 @@ export function WishingLedgerCard() {
     setChestCost(null);
   };
 
-  // 当前展示的愿望列表（最新在右下）
-  const displayWishes = [...wishlist].reverse();
-  // 账本格子（从下往上：最新在左下）
-  const displayTrans  = [...transactions];
+  // getChunkedRows 接受 oldest-first 数组，返回 [newest_chunk, ..., oldest_chunk]
+  // wishlist 是 append（oldest-first）；transactions 是 prepend（newest-first，需先 reverse）
+  const COLS = 4;
+  function getChunkedRows<T>(oldestFirst: T[]): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < oldestFirst.length; i += COLS) chunks.push(oldestFirst.slice(i, i + COLS));
+    return chunks.reverse(); // [newest_chunk, ..., oldest_chunk]
+  }
+  const wishRows = getChunkedRows(wishlist);                     // wishlist 已是 oldest-first
+  const ledgRows = getChunkedRows([...transactions].reverse()); // transactions 需先 reverse
 
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
@@ -360,14 +366,21 @@ export function WishingLedgerCard() {
         {wishlist.length === 0 && !addingWish ? (
           <div className="text-center py-4 text-[11px] text-black/25">还没有心愿，许个愿吧 ✨</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8,
-            gridAutoFlow: "row dense", marginBottom: 16 }}>
-            {displayWishes.map(w => (
-              <WishTile key={w.id} w={w} pts={pts}
-                onRedeem={() => handleRedeem(w)}
-                onEdit={() => { setEditingWish(w); setAddingWish(false); }}
-                onDelete={() => removeWish(w.id)}
-              />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
+            {wishRows.map((row, ri) => (
+              <Fragment key={ri}>
+                {row.map(w => (
+                  <WishTile key={w.id} w={w} pts={pts}
+                    onRedeem={() => handleRedeem(w)}
+                    onEdit={() => { setEditingWish(w); setAddingWish(false); }}
+                    onDelete={() => removeWish(w.id)}
+                  />
+                ))}
+                {/* 未满一行补空白格，岁云正确行对齐 */}
+                {Array.from({ length: COLS - row.length }).map((_, j) => (
+                  <div key={`wpad-${j}`} style={{ aspectRatio: "1/1" }} />
+                ))}
+              </Fragment>
             ))}
           </div>
         )}
@@ -410,12 +423,19 @@ export function WishingLedgerCard() {
         {transactions.length === 0 && !addingLed ? (
           <div className="text-center py-4 text-[11px] text-black/25">还没有消费记录</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, gridAutoFlow: "row dense" }}>
-            {displayTrans.map(t => (
-              <LedgerTile key={t.id} t={t}
-                onEdit={() => { setEditingLed(t); setAddingLed(false); }}
-                onDelete={() => removeTransaction(t.id)}
-              />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+            {ledgRows.map((row, ri) => (
+              <Fragment key={ri}>
+                {row.map(t => (
+                  <LedgerTile key={t.id} t={t}
+                    onEdit={() => { setEditingLed(t); setAddingLed(false); }}
+                    onDelete={() => removeTransaction(t.id)}
+                  />
+                ))}
+                {Array.from({ length: COLS - row.length }).map((_, j) => (
+                  <div key={`lpad-${j}`} style={{ aspectRatio: "1/1" }} />
+                ))}
+              </Fragment>
             ))}
           </div>
         )}
