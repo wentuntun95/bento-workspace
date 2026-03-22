@@ -151,8 +151,9 @@ export function XiaoYouReminder() {
   // Position
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [emote, setEmote] = useState<{ src: string; label: string }>(() => randomEmote());
-  const [isDragging, setIsDragging] = useState(false); // state 负责关 transition
-  const dragRef = useRef(false);                        // ref 负责忽闭巡游检查
+  const [isDragging, setIsDragging] = useState(false);   // state 负责关 transition
+  const [isPatrolling, setIsPatrolling] = useState(false); // true 时用慢速巡游过渡
+  const dragRef = useRef(false);
   const offsetRef = useRef({ x: 0, y: 0 });
   const posRef = useRef({ x: 0, y: 0 });
 
@@ -201,9 +202,10 @@ export function XiaoYouReminder() {
     return () => clearInterval(id);
   }, [chatOpen]);
 
-  // 边缘巡游：空闲时沿屏幕边框随机移动
+  // 边缘巡游：空闲时沿屏幕边框慢速移动（15-25s 一次，5s 滑过去）
   useEffect(() => {
     if (chatOpen) return;
+    const PATROL_DURATION = 5000; // transition 时长（ms），与 CSS 保持一致
     const patrol = () => {
       if (dragRef.current || chatOpen) return;
       const W = window.innerWidth, H = window.innerHeight;
@@ -215,9 +217,12 @@ export function XiaoYouReminder() {
       else if (edge === 2) { nx = pad + Math.random() * (W - sz - pad * 2); ny = H - sz - pad; }
       else                 { nx = pad; ny = pad + 80 + Math.random() * (H - sz - 140); }
       posRef.current = { x: nx, y: ny };
+      setIsPatrolling(true);
       setPos({ x: nx, y: ny });
+      setTimeout(() => setIsPatrolling(false), PATROL_DURATION + 200);
     };
-    const id = setInterval(patrol, 5000 + Math.random() * 4000);
+    // 15-25 秒移动一次
+    const id = setInterval(patrol, 15000 + Math.random() * 10000);
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatOpen]);
@@ -374,8 +379,12 @@ export function XiaoYouReminder() {
         top: pos.y,
         zIndex: 9990,
         userSelect: "none",
-        // isDragging 是 state ，切换时会重渲染，这里的 transition 才能真正生效
-        transition: isDragging ? "none" : "left 0.8s cubic-bezier(0.34,1.2,0.64,1), top 0.8s cubic-bezier(0.34,1.2,0.64,1)",
+        // 拖动时无过渡；巡游时5s慢速滑动；其他0.8s弹性
+        transition: isDragging
+          ? "none"
+          : isPatrolling
+            ? "left 5s ease-in-out, top 5s ease-in-out"
+            : "left 0.8s cubic-bezier(0.34,1.2,0.64,1), top 0.8s cubic-bezier(0.34,1.2,0.64,1)",
       }}
     >
       {/* DDL 提醒气泡 */}
