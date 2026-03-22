@@ -58,11 +58,10 @@ function WorkTab() {
         <CardSlot minH="190px"><TaskCard type="fun" title="Fun" /></CardSlot>
         <CardSlot minH="190px"><TaskCard type="heal" title="Heal" /></CardSlot>
       </div>
-      {/* 周历 + 能量树 并排，固定高度防止树被拉高拉窄 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, height: 240 }}>
-        <CardSlot noPad><CalendarCard /></CardSlot>
-        <CardSlot noPad><EnergyTreeCard /></CardSlot>
-      </div>
+      {/* 周历 — 全宽，高度固定内部可滚动 */}
+      <CardSlot minH="220px" noPad><CalendarCard /></CardSlot>
+      {/* 能量树 — 全宽，正方形比例 */}
+      <CardSlot minH="160px" noPad><EnergyTreeCard /></CardSlot>
     </div>
   );
 }
@@ -333,7 +332,7 @@ export function MobileBentoGrid({
     }}>
       <MobileHeader onReport={onReport} onLogin={onLogin} onApply={onApply} />
 
-      <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "0 14px 14px" }}>
+      <main style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", padding: "0 14px 14px" }}>
         {activeTab === "work"   && <WorkTab />}
         {activeTab === "rest"   && <RestTab />}
         {activeTab === "reward" && <RewardTab />}

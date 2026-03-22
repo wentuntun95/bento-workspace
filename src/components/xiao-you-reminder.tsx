@@ -437,7 +437,7 @@ export function XiaoYouReminder({ isMobile = false }: { isMobile?: boolean }) {
             cursor: "pointer", lineHeight: 1.4, whiteSpace: "nowrap",
           }}
         >
-          让一让
+          挪一挪
         </button>
       )}
 
