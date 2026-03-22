@@ -490,6 +490,19 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             pts: legacy.points,
           }];
         }
+        // tracks 迁移：清除已删除的 bundled 歌曲（文件不存在的）
+        if (state.tracks) {
+          const validBundledIds = new Set(DEFAULT_TRACKS.map(t => t.id));
+          state.tracks = (state.tracks as MusicTrack[]).filter(
+            t => t.type !== 'bundled' || validBundledIds.has(t.id)
+          );
+          if (state.tracks.length === 0) state.tracks = DEFAULT_TRACKS;
+          // 如果当前歌曲已被删，回退到第一首
+          const ids = new Set((state.tracks as MusicTrack[]).map(t => t.id));
+          if (state.currentTrackId && !ids.has(state.currentTrackId as string)) {
+            state.currentTrackId = (state.tracks as MusicTrack[])[0]?.id ?? null;
+          }
+        }
       },
     }
   )
