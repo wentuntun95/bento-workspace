@@ -67,9 +67,8 @@ export interface MusicTrack {
 }
 
 export const DEFAULT_TRACKS: MusicTrack[] = [
-  { id: 'photograph',  title: 'Photograph',    url: '/music/Photograph.mp3',           type: 'bundled' },
-  { id: 'prayer-x',   title: 'Prayer X',       url: '/music/Prayer X.mp3',             type: 'bundled' },
-  { id: 'zelda-botw', title: 'Zelda · BotW',   url: '/music/ZELDA-BREATHofTheWILD.mp3', type: 'bundled' },
+  { id: 'photograph',  title: 'Photograph',    url: '/music/Photograph.mp3', type: 'bundled' },
+  { id: 'prayer-x',   title: 'Prayer X',       url: '/music/Prayer X.mp3',  type: 'bundled' },
 ];
 
 export interface Bookmark {
@@ -154,8 +153,8 @@ interface WorkspaceState {
   removeTrack: (id: string) => void;
   setCurrentTrack: (id: string) => void;
   // 小鱿控制音乐的璫态信号（不持久化）
-  musicCommand: { cmd: 'play' | 'next' | 'prev' | 'goto'; index?: number } | null;
-  triggerMusicCommand: (cmd: { cmd: 'play' | 'next' | 'prev' | 'goto'; index?: number }) => void;
+  musicCommand: { cmd: 'play' | 'pause' | 'next' | 'prev' | 'goto'; index?: number } | null;
+  triggerMusicCommand: (cmd: { cmd: 'play' | 'pause' | 'next' | 'prev' | 'goto'; index?: number }) => void;
   clearMusicCommand: () => void;
 
   // C系 快捷网址

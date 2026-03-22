@@ -282,13 +282,15 @@ export function XiaoYouReminder() {
         if (action.title && action.date)
           addDdl(action.title, new Date(action.date), action.time ?? "", undefined);
         break;
-      case "add_note":
-        if (action.content)
-          addNote(action.content, (action.category as "笔记"|"提醒"|"清单"|"会议") ?? "笔记");
+      case "add_note": {
+        const noteContent = action.content ?? action.title; // 兜底：部分模型用 title
+        if (noteContent)
+          addNote(noteContent, (action.category as "笔记"|"提醒"|"清单"|"会议") ?? "笔记");
         break;
+      }
       case "play_music":
         if (action.cmd)
-          triggerMusicCommand({ cmd: action.cmd as "play"|"next"|"prev"|"goto", index: action.index });
+          triggerMusicCommand({ cmd: action.cmd as "play"|"pause"|"next"|"prev"|"goto", index: action.index });
         break;
     }
   }
@@ -500,23 +502,23 @@ export function XiaoYouReminder() {
           top: -28, right: -8,
           zIndex: 10,
           background: "none", border: "none", padding: 4, cursor: "pointer",
-          transform: chatOpen ? "scale(1.08)" : "scale(1)",
+          transform: chatOpen ? "scale(1)" : "scale(1)",
           transition: "transform 0.2s",
           filter: chatOpen
             ? "drop-shadow(0 0 6px rgba(139,92,246,0.7))"
             : "drop-shadow(0 1px 3px rgba(0,0,0,0.2))",
         }}
       >
-        {/* 4 rounded-rect bars (Gemini style) */}
-        <svg width="46" height="32" viewBox="0 0 46 30" fill="none">
+        {/* 4 rounded-rect bars — 同色系透明度渐变，中实两透 */}
+        <svg width="34" height="24" viewBox="0 0 46 30" fill="none">
           <rect x="0"  y="5"  width="9" height="20" rx="4.5"
-            fill={chatOpen ? "#7c3aed" : "rgba(196,181,253,0.92)"} />
+            fill={chatOpen ? "rgba(167,139,250,0.45)" : "rgba(160,155,185,0.4)"} />
           <rect x="12" y="1"  width="10" height="28" rx="5"
-            fill={chatOpen ? "#8b5cf6" : "rgba(167,139,250,0.95)"} />
+            fill={chatOpen ? "rgba(167,139,250,0.85)" : "rgba(160,155,185,0.75)"} />
           <rect x="25" y="1"  width="10" height="28" rx="5"
-            fill={chatOpen ? "#8b5cf6" : "rgba(167,139,250,0.95)"} />
+            fill={chatOpen ? "rgba(167,139,250,0.85)" : "rgba(160,155,185,0.75)"} />
           <rect x="38" y="5"  width="8"  height="20" rx="4"
-            fill={chatOpen ? "#7c3aed" : "rgba(196,181,253,0.85)"} />
+            fill={chatOpen ? "rgba(167,139,250,0.45)" : "rgba(160,155,185,0.4)"} />
         </svg>
       </button>
 

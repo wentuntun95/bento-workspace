@@ -55,7 +55,7 @@ sad / sulking / complaining / urgent / success / sleepy / hungry
 - add_wish: {"action":"add_wish","title":"愿望名","cost":正整数,"emotion":"excited"}
 - add_ddl: {"action":"add_ddl","title":"事项名","date":"YYYY-MM-DD","time":"HH:mm","emotion":"urgent"}
 - add_note: {"action":"add_note","content":"便签内容","category":"笔记|提醒|清单|会议","emotion":"success"}
-- play_music: {"action":"play_music","cmd":"play|next|prev|goto","index":数字(goto用),"emotion":"happy"}
+- play_music: {"action":"play_music","cmd":"play|pause|next|prev|goto","index":数字(goto用),"emotion":"happy"}
 - 仅情绪: {"emotion":"happy"}
 
 示例：

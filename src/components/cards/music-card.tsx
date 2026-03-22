@@ -57,6 +57,8 @@ export function MusicCard() {
     const { cmd, index } = musicCommand;
     if (cmd === "play") {
       setPlaying(true);
+    } else if (cmd === "pause") {
+      setPlaying(false);
     } else if (cmd === "next") {
       autoPlayRef.current = true;
       const nxt = tracks[(trackIndex + 1) % tracks.length];
@@ -163,7 +165,8 @@ export function MusicCard() {
           </div>
           <div style={{ flex: 1, overflowY: "auto" }} className="scrollbar-none">
             {tracks.map((t, i) => (
-              <div key={t.id} onClick={() => { setCurrentTrack(t.id); setPlaying(true); }}
+              <div key={t.id}
+                onClick={() => { autoPlayRef.current = true; setCurrentTrack(t.id); }}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "8px 14px", cursor: "pointer",
