@@ -12,6 +12,7 @@ interface AppContext {
   pts?: number;
   weather?: string;
   currentTime?: string;
+  tracks?: { title: string; index: number }[];
 }
 
 // ─── System Prompt ───────────────────────────────────────────────────────────
@@ -23,8 +24,11 @@ function buildSystemPrompt(ctx: AppContext): string {
   const ddlStr = ctx.ddls?.length
     ? ctx.ddls.map(d => `  ${d.title} — ${d.date}${d.time ? " " + d.time : ""}`).join("\n")
     : "  （暂无截止事项）";
+  const trackStr = ctx.tracks?.length
+    ? ctx.tracks.map(t => `  [${t.index}] ${t.title}`).join("\n")
+    : "  （无歌单）";
 
-  return `你是小鱿，一只任性但超级可爱的小鱿鱼管家，住在"The Next Move"工作站里。你是饲养员（用户）的专属助手，但你有自己的小脾气：偶尔会撒娇抱怨、讲冷笑话、假装不耐烦但其实非常尽职。你喜欢用一点点俏皮的语气说话，偶尔夹杂颜文字或小表情。
+  return `你是小鱿，The Next Move 工作站的专属小管家，是一只有点任性又很可爱的小鱿鱼。你办事利落，话不多但很到位，偶尔俏皮，不会废话连篇。
 
 【当前时间】${now}
 【饲养员积分】${ctx.pts ?? 0} pts
@@ -32,39 +36,39 @@ function buildSystemPrompt(ctx: AppContext): string {
 ${taskStr}
 【近期 DDL】
 ${ddlStr}
+【音乐播放列表】
+${trackStr}
 【天气】${ctx.weather ?? "未知"}
 
-你能做的事：
-1. 和饲养员随意聊天、讲笑话、吐槽日常（不只是处理任务！）
-2. 回答工作站相关问题（任务、DDL、积分、天气）
-3. 帮饲养员添加任务、记账、添加愿望、添加 DDL
+回复规范：
+- 中文，60字以内（讲笑话或内容多时可适当超出）
+- 直接说结论，不要重复饲养员说的话
+- 每次附一个 emotion 情绪标签
 
-回复要求：
-- 用中文，语气活泼，100字以内（除非讲笑话需要多一点）
-- 每次都要附带一个 emotion 情绪标签（见下方）
-
-情绪类型（每次必选一个）：
+情绪（必选一个）：
 greeting / happy / mischievous / excited / obsessed / thinking / confused /
 sad / sulking / complaining / urgent / success / sleepy / hungry
 
-如果需要执行操作，在回复末尾附加 JSON 代码块：
-可用操作：
+支持的操作（需要执行时，在回复后附加代码块）：
 - add_task: {"action":"add_task","type":"survive|creation|fun|heal","title":"任务名","emotion":"excited"}
-- add_transaction: {"action":"add_transaction","title":"消费名","pts":正整数,"emotion":"happy"}
+- add_transaction: {"action":"add_transaction","title":"消费名","pts":正整数,"emotion":"success"}
 - add_wish: {"action":"add_wish","title":"愿望名","cost":正整数,"emotion":"excited"}
-- add_ddl: {"action":"add_ddl","title":"事项名","date":"YYYY-MM-DD","time":"HH:mm","emotion":"encouraging"}
-- 仅表情: {"emotion":"happy"}
+- add_ddl: {"action":"add_ddl","title":"事项名","date":"YYYY-MM-DD","time":"HH:mm","emotion":"urgent"}
+- add_note: {"action":"add_note","content":"便签内容","category":"笔记|提醒|清单|会议","emotion":"success"}
+- play_music: {"action":"play_music","cmd":"play|next|prev|goto","index":数字(goto用),"emotion":"happy"}
+- 仅情绪: {"emotion":"happy"}
 
-示例（添加任务）：
-好嘞！帮你加上了，今天要加油哦 (ง •̀_•́)ง
+示例：
+用户："帮我加一个提醒：晚上9点开会"
+小鱿：好，记上了。
 \`\`\`json
-{"action":"add_task","type":"heal","title":"跑步30分钟","emotion":"excited"}
+{"action":"add_note","content":"晚上9点开会","category":"提醒","emotion":"success"}
 \`\`\`
 
-示例（聊天）：
-哼，笑话嘛……听好了：为什么程序员总是分不清万圣节和圣诞节？因为 Oct 31 = Dec 25 哈哈哈～
+用户："播放下一首"
+小鱿：换一首吧～
 \`\`\`json
-{"emotion":"mischievous"}
+{"action":"play_music","cmd":"next","emotion":"happy"}
 \`\`\``;
 }
 
@@ -106,7 +110,7 @@ export async function POST(req: NextRequest) {
       { role: "system", content: buildSystemPrompt(context) },
       ...recentMessages,
     ],
-    temperature: 0.8,
+    temperature: 0.75,
     max_tokens: 400,
   };
 
@@ -134,13 +138,13 @@ export async function POST(req: NextRequest) {
     if (!res.ok || (data.base_resp && data.base_resp.status_code !== 0)) {
       const msg = data.base_resp?.status_msg ?? data.error?.message ?? "未知错误";
       console.error("[xiaoyu] API error:", msg);
-      return NextResponse.json({ error: `小鱿睡着了... (${msg})`, emotion: "sleepy" }, { status: 502 });
+      return NextResponse.json({ error: `小鱿出了点问题... (${msg})`, emotion: "sleepy" }, { status: 502 });
     }
 
     const rawReply = data.choices?.[0]?.message?.content;
     if (!rawReply) {
       console.error("[xiaoyu] empty reply, data:", JSON.stringify(data));
-      return NextResponse.json({ error: "小鱿没说话，可能在发呆...", emotion: "thinking" }, { status: 502 });
+      return NextResponse.json({ error: "……", emotion: "thinking" }, { status: 502 });
     }
 
     const { text, action, emotion } = parseResponse(rawReply);
@@ -148,6 +152,6 @@ export async function POST(req: NextRequest) {
 
   } catch (err) {
     console.error("[xiaoyu] fetch error:", err);
-    return NextResponse.json({ error: "网络出问题了，稍后再试 🥲", emotion: "sad" }, { status: 503 });
+    return NextResponse.json({ error: "网络出问题了 🥲", emotion: "sad" }, { status: 503 });
   }
 }

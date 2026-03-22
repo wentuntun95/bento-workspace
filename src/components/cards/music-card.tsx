@@ -33,6 +33,8 @@ export function MusicCard() {
   const setCurrentTrack = useWorkspaceStore(s => s.setCurrentTrack);
   const addTrack        = useWorkspaceStore(s => s.addTrack);
   const removeTrack     = useWorkspaceStore(s => s.removeTrack);
+  const musicCommand    = useWorkspaceStore(s => s.musicCommand);
+  const clearMusicCommand = useWorkspaceStore(s => s.clearMusicCommand);
 
   const track      = tracks.find(t => t.id === currentTrackId) ?? tracks[0];
   const trackIndex = tracks.findIndex(t => t.id === track?.id);
@@ -48,6 +50,28 @@ export function MusicCard() {
   const [repeatMode, setRepeatMode] = useState<"list" | "single">("list");
   const repeatModeRef = useRef<"list" | "single">("list");
   useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
+
+  // ── 小鱿音乐控制 ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!musicCommand) return;
+    const { cmd, index } = musicCommand;
+    if (cmd === "play") {
+      setPlaying(true);
+    } else if (cmd === "next") {
+      autoPlayRef.current = true;
+      const nxt = tracks[(trackIndex + 1) % tracks.length];
+      if (nxt) setCurrentTrack(nxt.id);
+    } else if (cmd === "prev") {
+      autoPlayRef.current = true;
+      const prv = tracks[(trackIndex - 1 + tracks.length) % tracks.length];
+      if (prv) setCurrentTrack(prv.id);
+    } else if (cmd === "goto" && index !== undefined) {
+      const t = tracks[index];
+      if (t) { autoPlayRef.current = true; setCurrentTrack(t.id); }
+    }
+    clearMusicCommand();
+  }, [musicCommand, clearMusicCommand, tracks, trackIndex, setCurrentTrack]);
+
 
   useEffect(() => {
     if (!track) return;

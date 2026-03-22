@@ -153,6 +153,10 @@ interface WorkspaceState {
   addTrack: (title: string, url: string) => void;
   removeTrack: (id: string) => void;
   setCurrentTrack: (id: string) => void;
+  // 小鱿控制音乐的璫态信号（不持久化）
+  musicCommand: { cmd: 'play' | 'next' | 'prev' | 'goto'; index?: number } | null;
+  triggerMusicCommand: (cmd: { cmd: 'play' | 'next' | 'prev' | 'goto'; index?: number }) => void;
+  clearMusicCommand: () => void;
 
   // C系 快捷网址
   bookmarks: Bookmark[];
@@ -180,6 +184,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       imageCardX: 0, imageCardY: 0, imageCardW: 0,
       tracks: DEFAULT_TRACKS,
       currentTrackId: DEFAULT_TRACKS[0].id,
+      musicCommand: null,
       bookmarks: DEFAULT_BOOKMARKS,
 
       addTask: (text, type) => set((state) => ({
@@ -423,6 +428,10 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       })),
 
       setCurrentTrack: (id) => set({ currentTrackId: id }),
+
+      triggerMusicCommand: (cmd) => set({ musicCommand: cmd }),
+      clearMusicCommand: () => set({ musicCommand: null }),
+
 
       addBookmark: (title, url, emoji) => set((state) => ({
         bookmarks: [...state.bookmarks, {
