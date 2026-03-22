@@ -151,7 +151,8 @@ export function XiaoYouReminder() {
   // Position
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [emote, setEmote] = useState<{ src: string; label: string }>(() => randomEmote());
-  const dragRef = useRef(false);
+  const [isDragging, setIsDragging] = useState(false); // state 负责关 transition
+  const dragRef = useRef(false);                        // ref 负责忽闭巡游检查
   const offsetRef = useRef({ x: 0, y: 0 });
   const posRef = useRef({ x: 0, y: 0 });
 
@@ -331,23 +332,20 @@ export function XiaoYouReminder() {
   );
 
   // ── Drag（只拖动，不打开对话）─────────────────────────────
-  const pointerDownPos = useRef({ x: 0, y: 0 });
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (!pos) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    pointerDownPos.current = { x: e.clientX, y: e.clientY };
-    // 用实际渲染位置而非 posRef，避免边缘干游 transition 还在运动时算出错误偏移
+    // 从实际渲染位置读偷辟（巡游 transition 进行中时 posRef 已是终点）
     const wrapper = e.currentTarget.parentElement;
-    if (wrapper) {
-      const rect = wrapper.getBoundingClientRect();
-      posRef.current = { x: rect.left, y: rect.top };
-    }
-    offsetRef.current = { x: e.clientX - posRef.current.x, y: e.clientY - posRef.current.y };
+    const rect = wrapper?.getBoundingClientRect();
+    const ax = rect ? rect.left : posRef.current.x;
+    const ay = rect ? rect.top  : posRef.current.y;
+    posRef.current = { x: ax, y: ay };
+    offsetRef.current = { x: e.clientX - ax, y: e.clientY - ay };
+    dragRef.current = true;
+    setIsDragging(true); // 触发重渲染将 transition 切为 none
   }
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    const dx = e.clientX - pointerDownPos.current.x;
-    const dy = e.clientY - pointerDownPos.current.y;
-    if (!dragRef.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) dragRef.current = true;
     if (!dragRef.current) return;
     const nx = e.clientX - offsetRef.current.x;
     const ny = e.clientY - offsetRef.current.y;
@@ -355,8 +353,8 @@ export function XiaoYouReminder() {
     setPos({ x: nx, y: ny });
   }
   function onPointerUp() {
-    if (!dragRef.current) return;
     dragRef.current = false;
+    setIsDragging(false); // 恢复 transition
     setEmote(randomEmote(emote.src));
   }
   function dismissAlert() {
@@ -376,7 +374,8 @@ export function XiaoYouReminder() {
         top: pos.y,
         zIndex: 9990,
         userSelect: "none",
-        transition: dragRef.current ? "none" : "left 0.5s cubic-bezier(0.34,1.2,0.64,1), top 0.5s cubic-bezier(0.34,1.2,0.64,1)",
+        // isDragging 是 state ，切换时会重渲染，这里的 transition 才能真正生效
+        transition: isDragging ? "none" : "left 0.8s cubic-bezier(0.34,1.2,0.64,1), top 0.8s cubic-bezier(0.34,1.2,0.64,1)",
       }}
     >
       {/* DDL 提醒气泡 */}
