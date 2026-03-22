@@ -51,14 +51,20 @@ export function MusicCard() {
   const repeatModeRef = useRef<"list" | "single">("list");
   useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
 
-  // ── 小鱿音乐控制 ──────────────────────────────────────────────
+  // ── 小鱿音乐控制（直接操作 audioRef，避免 state→effect 多层延迟）──────
   useEffect(() => {
     if (!musicCommand) return;
     const { cmd, index } = musicCommand;
+    const audio = audioRef.current;
+
     if (cmd === "play") {
-      setPlaying(true);
+      if (audio) {
+        audio.play()
+          .then(() => setPlaying(true))
+          .catch((e) => console.warn("[music] play blocked:", e));
+      }
     } else if (cmd === "pause") {
-      setPlaying(false);
+      if (audio) { audio.pause(); setPlaying(false); }
     } else if (cmd === "next") {
       autoPlayRef.current = true;
       const nxt = tracks[(trackIndex + 1) % tracks.length];
