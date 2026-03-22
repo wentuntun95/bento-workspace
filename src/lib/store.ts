@@ -67,8 +67,9 @@ export interface MusicTrack {
 }
 
 export const DEFAULT_TRACKS: MusicTrack[] = [
-  { id: 'photograph',  title: 'Photograph',    url: '/music/Photograph.mp3', type: 'bundled' },
-  { id: 'prayer-x',   title: 'Prayer X',       url: '/music/Prayer X.mp3',  type: 'bundled' },
+  { id: 'photograph',    title: 'Photograph',              url: '/music/Photograph.mp3',             type: 'bundled' },
+  { id: 'prayer-x',     title: 'Prayer X',                url: '/music/Prayer X.mp3',               type: 'bundled' },
+  { id: 'ac-rainy',     title: 'Animal Crossing · Rainy', url: '/music/Animal Crossing Rainy.mp3',  type: 'bundled' },
 ];
 
 export interface Bookmark {
