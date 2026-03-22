@@ -484,26 +484,29 @@ export function XiaoYouReminder() {
       <button
         onClick={() => { setChatOpen(o => !o); setAlertVisible(false); }}
         onPointerDown={e => e.stopPropagation()}
+        onPointerUp={e => e.stopPropagation()}
         title={chatOpen ? "关闭对话" : "和小鱿说话"}
         className="absolute"
         style={{
-          top: -8, right: -10,
+          top: -28, right: -8,
+          zIndex: 10,
           background: "none", border: "none", padding: 4, cursor: "pointer",
-          transform: chatOpen ? "scale(1.05)" : "scale(1)",
+          transform: chatOpen ? "scale(1.08)" : "scale(1)",
           transition: "transform 0.2s",
-          filter: chatOpen ? "drop-shadow(0 0 6px rgba(139,92,246,0.6))" : "drop-shadow(0 1px 3px rgba(0,0,0,0.18))",
+          filter: chatOpen
+            ? "drop-shadow(0 0 6px rgba(139,92,246,0.7))"
+            : "drop-shadow(0 1px 3px rgba(0,0,0,0.2))",
         }}
       >
-        {/* Gemini-style 4 oval icon */}
-        <svg width="46" height="34" viewBox="0 0 46 32" fill="none">
-          <ellipse cx="7"  cy="16" rx="5.5" ry="10"
+        {/* 4 rounded-rect bars (Gemini style) */}
+        <svg width="46" height="32" viewBox="0 0 46 30" fill="none">
+          <rect x="0"  y="5"  width="9" height="20" rx="4.5"
             fill={chatOpen ? "#7c3aed" : "rgba(196,181,253,0.92)"} />
-          <ellipse cx="19" cy="16" rx="6"   ry="11.5"
+          <rect x="12" y="1"  width="10" height="28" rx="5"
             fill={chatOpen ? "#8b5cf6" : "rgba(167,139,250,0.95)"} />
-          <ellipse cx="31" cy="16" rx="6"   ry="11.5"
+          <rect x="25" y="1"  width="10" height="28" rx="5"
             fill={chatOpen ? "#8b5cf6" : "rgba(167,139,250,0.95)"} />
-          <ellipse cx="42" cy="16" rx="4.5" ry="9"
-            transform="rotate(-14 42 16)"
+          <rect x="38" y="5"  width="8"  height="20" rx="4"
             fill={chatOpen ? "#7c3aed" : "rgba(196,181,253,0.85)"} />
         </svg>
       </button>
