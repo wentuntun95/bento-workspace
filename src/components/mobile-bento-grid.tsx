@@ -23,10 +23,12 @@ type TabId = (typeof TABS)[number]["id"];
 function CardSlot({
   children,
   minH,
+  maxH,
   noPad = false,
 }: {
   children: React.ReactNode;
   minH?: string;
+  maxH?: string;
   noPad?: boolean;
 }) {
   return (
@@ -39,6 +41,7 @@ function CardSlot({
         border: "1px solid rgba(0,0,0,0.06)",
         overflow: "hidden",
         minHeight: minH,
+        maxHeight: maxH,
         padding: noPad ? 0 : "14px 16px",
       }}
     >
@@ -58,10 +61,10 @@ function WorkTab() {
         <CardSlot minH="190px"><TaskCard type="fun" title="Fun" /></CardSlot>
         <CardSlot minH="190px"><TaskCard type="heal" title="Heal" /></CardSlot>
       </div>
-      {/* 周历 — 全宽，高度固定内部可滚动 */}
-      <CardSlot minH="220px" noPad><CalendarCard /></CardSlot>
-      {/* 能量树 — 全宽，正方形比例 */}
-      <CardSlot minH="160px" noPad><EnergyTreeCard /></CardSlot>
+      {/* 周历 — 全宽，固定高度，内部滚动 */}
+      <CardSlot minH="200px" maxH="200px" noPad><CalendarCard /></CardSlot>
+      {/* 能量树 — 全宽 */}
+      <CardSlot minH="180px" maxH="200px" noPad><EnergyTreeCard /></CardSlot>
     </div>
   );
 }
