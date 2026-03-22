@@ -2,12 +2,14 @@
 
 import { useRef, useState, useEffect } from "react";
 import { BentoGrid } from "@/components/bento-grid";
+import { MobileBentoGrid } from "@/components/mobile-bento-grid";
 import { XiaoYouReminder } from "@/components/xiao-you-reminder";
 import { EnergyReportModal } from "@/components/energy-report-modal";
 import { LoginModal } from "@/components/login-modal";
 import { useWorkspaceStore } from "@/lib/store";
 import { monthlyPoints } from "@/lib/points";
 import { useAuth } from "@/lib/auth-context";
+import { useMobile } from "@/hooks/useMobile";
 
 function Header({
   onNav, currentPage, totalPages, onReport, onLogin, onApply,
@@ -123,6 +125,7 @@ export default function Home() {
   const [showLogin, setShowLogin]   = useState(false);
   const [loginView, setLoginView]   = useState<"login" | "apply">("login");
   const { mode, loading }           = useAuth();
+  const isMobile                    = useMobile();
   const checkAndResetDaily   = useWorkspaceStore((s) => s.checkAndResetDaily);
   const checkAndResetWeekly  = useWorkspaceStore((s) => s.checkAndResetWeekly);
 
@@ -148,13 +151,30 @@ export default function Home() {
     return () => el.removeEventListener("scrollend", handler);
   }, []);
 
-  if (loading) return null; // 等待 session 检查完成
+  if (loading) return null;
 
+  // ── 手机端布局 ──────────────────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div style={{ position: "relative" }}>
+        {mode === null && <LoginModal />}
+        {showLogin && mode === "anon" && (
+          <LoginModal canClose initialView={loginView} onClose={() => setShowLogin(false)} />
+        )}
+        <MobileBentoGrid
+          onReport={() => setShowReport(true)}
+          onLogin={() => { setLoginView("login"); setShowLogin(true); }}
+        />
+        <XiaoYouReminder isMobile />
+        {showReport && <EnergyReportModal onClose={() => setShowReport(false)} />}
+      </div>
+    );
+  }
+
+  // ── 桌面端布局 ──────────────────────────────────────────────────────────────
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col">
-      {/* 首次访问弹窗 (mode=null) */}
       {mode === null && <LoginModal />}
-      {/* 手动触发的登录弹窗（匿名用户点按钮） */}
       {showLogin && mode === "anon" && (
         <LoginModal
           canClose
@@ -170,7 +190,6 @@ export default function Home() {
         onApply={() => { setLoginView("apply"); setShowLogin(true); }}
       />
 
-      {/* Horizontal scroll canvas */}
       <div
         ref={scrollRef}
         className="flex-1 min-h-0"
@@ -187,7 +206,6 @@ export default function Home() {
         <BentoGrid />
       </div>
 
-      {/* Side nav arrow — fixed right edge, vertically centered */}
       <button
         onClick={() => {
           const el = scrollRef.current;
@@ -195,26 +213,14 @@ export default function Home() {
           navTo(el.scrollLeft > 50 ? 0 : 1);
         }}
         style={{
-          position: "fixed",
-          right: 10,
-          top: "50%",
-          transform: "translateY(-50%)",
-          zIndex: 50,
-          background: "rgba(255,255,255,0.75)",
-          backdropFilter: "blur(8px)",
-          border: "1px solid rgba(0,0,0,0.08)",
-          borderRadius: 10,
-          width: 28,
-          height: 52,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          color: "rgba(0,0,0,0.35)",
-          fontSize: 16,
-          fontWeight: 700,
-          transition: "background 0.15s, color 0.15s",
-          lineHeight: 1,
+          position: "fixed", right: 10, top: "50%",
+          transform: "translateY(-50%)", zIndex: 50,
+          background: "rgba(255,255,255,0.75)", backdropFilter: "blur(8px)",
+          border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10,
+          width: 28, height: 52, display: "flex", alignItems: "center",
+          justifyContent: "center", cursor: "pointer",
+          color: "rgba(0,0,0,0.35)", fontSize: 16, fontWeight: 700,
+          transition: "background 0.15s, color 0.15s", lineHeight: 1,
         }}
         onMouseEnter={e => {
           (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.95)";

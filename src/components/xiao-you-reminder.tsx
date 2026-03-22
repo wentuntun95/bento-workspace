@@ -140,7 +140,7 @@ function useSpeechRecognition(onResult: (text: string) => void) {
 }
 
 // ─── Main component ───────────────────────────────────────────
-export function XiaoYouReminder() {
+export function XiaoYouReminder({ isMobile = false }: { isMobile?: boolean }) {
   const {
     ddls, tasks, taskHistory, transactions, tracks, notes, weather,
     addTask, addTransaction, addWish, addDdl, addNote, triggerMusicCommand,
@@ -148,11 +148,13 @@ export function XiaoYouReminder() {
 
   const pts = monthlyPoints(taskHistory, transactions, tasks);
 
-  // Position
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  // Position — 手机端固定右下角，桌面端随机角落
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(
+    isMobile ? { x: 0, y: 0 } : null   // 手机端不用随机，直接置 0 触发 fixed 定位
+  );
   const [emote, setEmote] = useState<{ src: string; label: string }>(() => randomEmote());
-  const [isDragging, setIsDragging] = useState(false);   // state 负责关 transition
-  const [isPatrolling, setIsPatrolling] = useState(false); // true 时用慢速巡游过渡
+  const [isDragging, setIsDragging] = useState(false);
+  const [isPatrolling, setIsPatrolling] = useState(false);
   const dragRef = useRef(false);
   const offsetRef = useRef({ x: 0, y: 0 });
   const posRef = useRef({ x: 0, y: 0 });
@@ -186,12 +188,14 @@ export function XiaoYouReminder() {
   // Hover
   const [hovered, setHovered] = useState(false);
 
-  // Init position
+  // Init position（手机端固定，跳过随机初始化）
   useEffect(() => {
+    if (isMobile) return;
     const W = window.innerWidth, H = window.innerHeight;
     const corner = CORNERS[Math.floor(Math.random() * CORNERS.length)];
     const p = cornerPos(corner, W, H);
     setPos(p); posRef.current = p;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-rotate emote
@@ -202,10 +206,10 @@ export function XiaoYouReminder() {
     return () => clearInterval(id);
   }, [chatOpen]);
 
-  // 边缘巡游：空闲时沿屏幕边框慢速移动（15-25s 一次，5s 滑过去）
+  // 边缘巡游（手机端禁用）
   useEffect(() => {
-    if (chatOpen) return;
-    const PATROL_DURATION = 5000; // transition 时长（ms），与 CSS 保持一致
+    if (isMobile || chatOpen) return;
+    const PATROL_DURATION = 5000;
     const patrol = () => {
       if (dragRef.current || chatOpen) return;
       const W = window.innerWidth, H = window.innerHeight;
@@ -387,11 +391,11 @@ export function XiaoYouReminder() {
     <div
       style={{
         position: "fixed",
-        left: pos.x,
-        top: pos.y,
+        ...(isMobile
+          ? { right: 14, bottom: 80, left: "auto", top: "auto" }
+          : { left: pos.x, top: pos.y }),
         zIndex: 9990,
         userSelect: "none",
-        // 拖动时无过渡；巡游时5s慢速滑动；其他0.8s弹性
         transition: isDragging
           ? "none"
           : isPatrolling
