@@ -213,8 +213,8 @@ function DDLBullet({ ddl, onEdit }: { ddl: DDLItem; onEdit: (d: DDLItem) => void
         </span>
       )}
 
-      {/* Actions on hover */}
-      <span className="flex-shrink-0 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Actions — desktop hover / mobile always visible */}
+      <span className="flex-shrink-0 flex gap-0.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto mobile-ddl-actions transition-opacity">
         <button onClick={() => onEdit(ddl)}
           className="text-amber-600/60 hover:text-amber-700 p-0.5 rounded transition-colors">
           <Pencil size={9} />

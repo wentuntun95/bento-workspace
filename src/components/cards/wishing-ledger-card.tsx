@@ -243,7 +243,7 @@ function AddForm({ theme, costLabel, initialTitle, initialCost, initialImg, onSu
 }
 
 // ─── 主组件：许愿账本 ──────────────────────────────────────────────────────────
-export function WishingLedgerCard() {
+export function WishingLedgerCard({ imageFit = "cover" }: { imageFit?: "cover" | "contain" }) {
   const {
     tasks, taskHistory, transactions,
     wishlist, addWish, removeWish, updateWish, redeemWish,
@@ -299,7 +299,7 @@ export function WishingLedgerCard() {
         style={{
           position: "absolute", inset: 0,
           width: "100%", height: "100%",
-          objectFit: "cover", objectPosition: "center top",
+          objectFit: imageFit, objectPosition: imageFit === "contain" ? "center top" : "center top",
           pointerEvents: "none", userSelect: "none",
         }}
         draggable={false}

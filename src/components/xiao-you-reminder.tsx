@@ -155,6 +155,7 @@ export function XiaoYouReminder({ isMobile = false }: { isMobile?: boolean }) {
   const [emote, setEmote] = useState<{ src: string; label: string }>(() => randomEmote());
   const [isDragging, setIsDragging] = useState(false);
   const [isPatrolling, setIsPatrolling] = useState(false);
+  const [squidVisible, setSquidVisible] = useState(true); // 手机端可隐藏
   const dragRef = useRef(false);
   const offsetRef = useRef({ x: 0, y: 0 });
   const posRef = useRef({ x: 0, y: 0 });
@@ -387,6 +388,26 @@ export function XiaoYouReminder({ isMobile = false }: { isMobile?: boolean }) {
   if (!pos) return null;
   const urgent = minsLeft <= 5;
 
+  // 手机端隐藏时显示召唤按鈕
+  if (isMobile && !squidVisible) {
+    return (
+      <button
+        onClick={() => setSquidVisible(true)}
+        style={{
+          position: "fixed", right: 14, bottom: 80,
+          zIndex: 9990, border: "none", cursor: "pointer",
+          background: "rgba(255,255,255,0.88)",
+          backdropFilter: "blur(8px)",
+          borderRadius: 20, padding: "6px 12px",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.12)",
+          fontSize: 12, color: "rgba(0,0,0,0.5)", fontWeight: 600,
+        }}
+      >
+        🐙 召唤
+      </button>
+    );
+  }
+
   return (
     <div
       style={{
@@ -403,6 +424,23 @@ export function XiaoYouReminder({ isMobile = false }: { isMobile?: boolean }) {
             : "left 0.8s cubic-bezier(0.34,1.2,0.64,1), top 0.8s cubic-bezier(0.34,1.2,0.64,1)",
       }}
     >
+      {/* 手机端"让一让"按鈕 — 在小鱿左侧，避免与聊天键重叠 */}
+      {isMobile && !chatOpen && (
+        <button
+          onClick={() => setSquidVisible(false)}
+          style={{
+            position: "absolute", right: "calc(100% + 6px)", bottom: 8,
+            background: "rgba(255,255,255,0.80)",
+            backdropFilter: "blur(6px)",
+            border: "none", borderRadius: 10,
+            padding: "3px 8px", fontSize: 10, color: "rgba(0,0,0,0.4)",
+            cursor: "pointer", lineHeight: 1.4, whiteSpace: "nowrap",
+          }}
+        >
+          让一让
+        </button>
+      )}
+
       {/* DDL 提醒气泡 */}
       {alertVisible && alert && !chatOpen && (
         <div className={cn(

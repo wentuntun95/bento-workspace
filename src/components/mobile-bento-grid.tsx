@@ -8,7 +8,8 @@ import { WeatherCard } from "@/components/cards/weather-card";
 import { MusicCard } from "@/components/cards/music-card";
 import { WishingLedgerCard } from "@/components/cards/wishing-ledger-card";
 import { useWorkspaceStore } from "@/lib/store";
-import { Trash2, Plus } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { Trash2, Plus, Copy } from "lucide-react";
 
 // ─── Tab 定义 ─────────────────────────────────────────────────────────────────
 const TABS = [
@@ -57,8 +58,11 @@ function WorkTab() {
         <CardSlot minH="190px"><TaskCard type="fun" title="Fun" /></CardSlot>
         <CardSlot minH="190px"><TaskCard type="heal" title="Heal" /></CardSlot>
       </div>
-      <CardSlot minH="200px" noPad><CalendarCard /></CardSlot>
-      <CardSlot minH="260px" noPad><EnergyTreeCard /></CardSlot>
+      {/* 周历 + 能量树 并或排 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <CardSlot minH="220px" noPad><CalendarCard /></CardSlot>
+        <CardSlot minH="220px" noPad><EnergyTreeCard /></CardSlot>
+      </div>
     </div>
   );
 }
@@ -74,9 +78,26 @@ const CAT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
 function NoteList() {
   const notes      = useWorkspaceStore(s => s.notes);
   const removeNote = useWorkspaceStore(s => s.removeNote);
+  const updateNote = useWorkspaceStore(s => s.updateNote);
   const addNote    = useWorkspaceStore(s => s.addNote);
-  const [text, setText] = useState("");
-  const [adding, setAdding] = useState(false);
+
+  const [draft,   setDraft]   = useState("");
+  const [adding,  setAdding]  = useState(false);
+  const [editing, setEditing] = useState<{ id: string; content: string } | null>(null);
+  const [copied,  setCopied]  = useState<string | null>(null);
+
+  const copyNote = (id: string, content: string) => {
+    navigator.clipboard.writeText(content).catch(() => {});
+    setCopied(id);
+    setTimeout(() => setCopied(prev => (prev === id ? null : prev)), 1500);
+  };
+
+  const submitEdit = () => {
+    if (!editing) return;
+    const trimmed = editing.content.trim();
+    if (trimmed) updateNote(editing.id, trimmed, notes.find(n => n.id === editing.id)?.category ?? "笔记");
+    setEditing(null);
+  };
 
   return (
     <div>
@@ -95,14 +116,11 @@ function NoteList() {
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <input
             autoFocus
-            value={text}
-            onChange={e => setText(e.target.value)}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
             onKeyDown={e => {
-              if (e.key === "Enter" && text.trim()) {
-                addNote(text.trim(), "笔记");
-                setText(""); setAdding(false);
-              }
-              if (e.key === "Escape") setAdding(false);
+              if (e.key === "Enter" && draft.trim()) { addNote(draft.trim(), "笔记"); setDraft(""); setAdding(false); }
+              if (e.key === "Escape") { setDraft(""); setAdding(false); }
             }}
             placeholder="新便签内容…"
             style={{
@@ -111,19 +129,18 @@ function NoteList() {
             }}
           />
           <button
-            onClick={() => { if (text.trim()) { addNote(text.trim(), "笔记"); setText(""); setAdding(false); } }}
+            onClick={() => { if (draft.trim()) { addNote(draft.trim(), "笔记"); setDraft(""); setAdding(false); } }}
             style={{ fontSize: 11, color: "#B8860B", background: "rgba(251,188,5,0.12)", border: "none", borderRadius: 6, padding: "4px 8px", cursor: "pointer" }}
-          >
-            加
-          </button>
+          >加</button>
         </div>
       )}
       {notes.length === 0 ? (
         <p style={{ fontSize: 12, color: "rgba(0,0,0,0.3)", textAlign: "center", padding: "12px 0" }}>暂无便签</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {notes.slice(0, 6).map(n => {
+          {[...notes].reverse().map(n => {
             const c = CAT_COLORS[n.category] ?? CAT_COLORS["笔记"];
+            const isEditing = editing?.id === n.id;
             return (
               <div
                 key={n.id}
@@ -132,22 +149,42 @@ function NoteList() {
                   background: c.bg, borderRadius: 10, padding: "7px 8px",
                 }}
               >
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: c.dot, flexShrink: 0, marginTop: 4 }} />
-                <span style={{ flex: 1, fontSize: 12, color: c.text, lineHeight: 1.5 }}>{n.content}</span>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: c.dot, flexShrink: 0, marginTop: 5 }} />
+                {isEditing ? (
+                  <input
+                    autoFocus
+                    value={editing.content}
+                    onChange={e => setEditing(prev => prev ? { ...prev, content: e.target.value } : null)}
+                    onBlur={submitEdit}
+                    onKeyDown={e => { if (e.key === "Enter") submitEdit(); if (e.key === "Escape") setEditing(null); }}
+                    style={{
+                      flex: 1, fontSize: 12, background: "rgba(255,255,255,0.7)",
+                      border: `1px solid ${c.dot}60`, borderRadius: 6, padding: "2px 6px", outline: "none", color: c.text,
+                    }}
+                  />
+                ) : (
+                  <span
+                    onClick={() => setEditing({ id: n.id, content: n.content })}
+                    style={{ flex: 1, fontSize: 12, color: c.text, lineHeight: 1.5, cursor: "text",
+                      whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                  >{n.content}</span>
+                )}
+                <button
+                  onClick={() => copyNote(n.id, n.content)}
+                  title="复制"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: copied === n.id ? c.dot : "rgba(0,0,0,0.2)", padding: 1, flexShrink: 0, fontSize: 10 }}
+                >
+                  {copied === n.id ? "✓" : <Copy size={10} />}
+                </button>
                 <button
                   onClick={() => removeNote(n.id)}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(0,0,0,0.25)", padding: 1, flexShrink: 0 }}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(0,0,0,0.2)", padding: 1, flexShrink: 0 }}
                 >
                   <Trash2 size={11} />
                 </button>
               </div>
             );
           })}
-          {notes.length > 6 && (
-            <p style={{ fontSize: 11, color: "rgba(0,0,0,0.35)", textAlign: "center" }}>
-              还有 {notes.length - 6} 条…
-            </p>
-          )}
         </div>
       )}
     </div>
@@ -157,18 +194,29 @@ function NoteList() {
 function RestTab() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <CardSlot minH="160px" noPad><WeatherCard /></CardSlot>
+      {/* 天气 + 音乐 并排置顶（固定尺寸） */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <CardSlot minH="150px" noPad><WeatherCard /></CardSlot>
+        <CardSlot minH="150px" noPad><MusicCard /></CardSlot>
+      </div>
+      {/* 便签在下，随页面滚动 */}
       <CardSlot><NoteList /></CardSlot>
-      <CardSlot minH="130px" noPad><MusicCard /></CardSlot>
     </div>
   );
 }
-
-// ─── Tab 3：积分兑换 ──────────────────────────────────────────────────────────
+// ─── Tab 3：积分兑换（撒满剩余高度）─────────────────────────────────
 function RewardTab() {
   return (
-    <div style={{ height: "100%" }}>
-      <CardSlot minH="300px" noPad><WishingLedgerCard /></CardSlot>
+    <div style={{
+      background: "rgba(255,255,255,0.78)",
+      backdropFilter: "blur(12px)",
+      WebkitBackdropFilter: "blur(12px)",
+      borderRadius: 20,
+      border: "1px solid rgba(0,0,0,0.06)",
+      overflow: "hidden",
+      minHeight: "calc(100svh - 130px)",
+    }}>
+      <WishingLedgerCard imageFit="contain" />
     </div>
   );
 }
@@ -221,6 +269,7 @@ function TabBar({ active, onSwitch }: { active: TabId; onSwitch: (id: TabId) => 
 
 // ─── 手机版 Header ────────────────────────────────────────────────────────────
 function MobileHeader({ onReport, onLogin }: { onReport: () => void; onLogin: () => void }) {
+  const { user, mode, signOut } = useAuth();
   return (
     <header style={{
       flexShrink: 0, display: "flex", alignItems: "center",
@@ -233,12 +282,20 @@ function MobileHeader({ onReport, onLogin }: { onReport: () => void; onLogin: ()
       }}>
         The Next Move
       </h1>
-      <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={onLogin} style={{
-          fontSize: 11, color: "#9A7850", background: "none",
-          border: "1px solid rgba(180,140,70,0.3)", borderRadius: 7,
-          padding: "4px 10px", cursor: "pointer",
-        }}>登录</button>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        {mode === "anon" ? (
+          <button onClick={onLogin} style={{
+            fontSize: 11, color: "#9A7850", background: "none",
+            border: "1px solid rgba(180,140,70,0.3)", borderRadius: 7,
+            padding: "4px 10px", cursor: "pointer",
+          }}>登录</button>
+        ) : mode === "authenticated" && user ? (
+          <span
+            onClick={signOut}
+            title="点击登出"
+            style={{ fontSize: 11, color: "#9A7850", cursor: "pointer" }}
+          >{user.email?.split("@")[0]} · 登出</span>
+        ) : null}
         <button onClick={onReport} style={{
           fontSize: 11, color: "#a16207", background: "rgba(250,204,21,0.12)",
           border: "1px solid rgba(250,204,21,0.35)", borderRadius: 7,

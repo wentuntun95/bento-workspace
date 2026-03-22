@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Trash2, Plus, Check, X } from "lucide-react";
+import { Trash2, Plus, Check, X, Copy } from "lucide-react";
 import { useWorkspaceStore, type Note, type NoteCategory } from "@/lib/store";
 
 // ─── 分类配置 ─────────────────────────────────────────────────────
@@ -30,8 +30,15 @@ export function NoteCard({ note, size }: { note: Note; size: number }) {
   const [editing, setEditing]   = useState(false);
   const [draft,   setDraft]     = useState(note.content);
   const [cat,     setCat]       = useState<NoteCategory>(note.category);
+  const [copied,  setCopied]    = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { if (editing) textareaRef.current?.focus(); }, [editing]);
+
+  const copyContent = () => {
+    navigator.clipboard.writeText(note.content).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   const cat0 = getCat(note.category);
 
@@ -104,10 +111,16 @@ export function NoteCard({ note, size }: { note: Note; size: number }) {
       )}
 
       {hovered && !editing && (
-        <button onClick={e => { e.stopPropagation(); removeNote(note.id); }}
-          style={{ position: "absolute", top: 8, right: 8, background: "rgba(255,255,255,0.85)", border: "none", borderRadius: 8, padding: "4px 5px", cursor: "pointer", color: "#ef4444", display: "flex", alignItems: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.1)" }}>
-          <Trash2 size={12} />
-        </button>
+        <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
+          <button onClick={copyContent}
+            style={{ background: "rgba(255,255,255,0.85)", border: "none", borderRadius: 8, padding: "4px 5px", cursor: "pointer", color: copied ? "#16a34a" : "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.1)" }}>
+            {copied ? <Check size={12} /> : <Copy size={12} />}
+          </button>
+          <button onClick={e => { e.stopPropagation(); removeNote(note.id); }}
+            style={{ background: "rgba(255,255,255,0.85)", border: "none", borderRadius: 8, padding: "4px 5px", cursor: "pointer", color: "#ef4444", display: "flex", alignItems: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.1)" }}>
+            <Trash2 size={12} />
+          </button>
+        </div>
       )}
     </div>
   );
@@ -206,6 +219,24 @@ function fmtDate(iso: string) {
 function fmtTime(iso: string) {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// ─── 复制按钮（带瞬时 ✓ 反馈）────────────────────────────────────────────────
+function CopyButton({ content }: { content: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      className="w-5 h-5 rounded-full flex items-center justify-center bg-white/80 text-slate-400 hover:text-green-600 transition-colors"
+      onClick={e => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(content).catch(() => {});
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+    >
+      {copied ? <Check size={10} /> : <Copy size={10} />}
+    </button>
+  );
 }
 
 // ─── 全部便签弹窗（按日期分组 + 搜索/分类筛选）────────────────────────────
@@ -308,10 +339,13 @@ function AllNotesModal({ onClose }: { onClose: () => void }) {
                         <p className="text-[12px] text-slate-700 leading-relaxed flex-1 whitespace-pre-wrap" style={{ overflowWrap: "anywhere" }}>{n.content}</p>
                         <span className="text-[10px] text-slate-400 flex-shrink-0 mt-0.5">{fmtTime(n.createdAt)}</span>
                       </div>
-                      <button
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded-full flex items-center justify-center bg-white/80 text-red-400 hover:text-red-600"
-                        onClick={() => removeNote(n.id)}
-                      ><Trash2 size={11} /></button>
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <CopyButton content={n.content} />
+                        <button
+                          className="w-5 h-5 rounded-full flex items-center justify-center bg-white/80 text-red-400 hover:text-red-600"
+                          onClick={() => removeNote(n.id)}
+                        ><Trash2 size={11} /></button>
+                      </div>
                     </div>
                   );
                 })}
@@ -447,7 +481,14 @@ function NoteCardRow({ note, isEditing, onStartEdit, onEndEdit }: {
   const updateNote = useWorkspaceStore(s => s.updateNote);
   const [draft, setDraft]     = useState(note.content);
   const [hovered, setHovered] = useState(false);
+  const [copied, setCopied]   = useState(false);
   const cat0 = getCat(note.category);
+
+  const copyNote = () => {
+    navigator.clipboard.writeText(note.content).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   const submit = () => {
     updateNote(note.id, draft.trim() || note.content, note.category);
@@ -497,12 +538,18 @@ function NoteCardRow({ note, isEditing, onStartEdit, onEndEdit }: {
         ) : (
           /* 非编辑状态：文本 + hover 删除按钮（放在同一分支，彻底避免状态竞争） */
           <div className="flex-1 relative">
-            <p className="text-[11px] leading-relaxed text-slate-700 whitespace-pre-wrap pr-5" style={{ overflowWrap: "anywhere" }}>{note.content}</p>
+            <p className="text-[11px] leading-relaxed text-slate-700 whitespace-pre-wrap pr-12" style={{ overflowWrap: "anywhere" }}>{note.content}</p>
             {hovered && (
-              <button
-                className="absolute top-0 right-0 w-5 h-5 rounded-full flex items-center justify-center bg-white/80 text-red-400 hover:text-red-600 transition-colors"
-                onClick={e => { e.stopPropagation(); removeNote(note.id); }}
-              ><Trash2 size={11} /></button>
+              <div className="absolute top-0 right-0 flex gap-1">
+                <button
+                  className="w-5 h-5 rounded-full flex items-center justify-center bg-white/80 text-slate-400 hover:text-green-600 transition-colors"
+                  onClick={e => { e.stopPropagation(); copyNote(); }}
+                >{copied ? <Check size={10} /> : <Copy size={10} />}</button>
+                <button
+                  className="w-5 h-5 rounded-full flex items-center justify-center bg-white/80 text-red-400 hover:text-red-600 transition-colors"
+                  onClick={e => { e.stopPropagation(); removeNote(note.id); }}
+                ><Trash2 size={11} /></button>
+              </div>
             )}
           </div>
         )}

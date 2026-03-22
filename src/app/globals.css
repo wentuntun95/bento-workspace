@@ -97,3 +97,11 @@ body {
   80%  { opacity: 1; }
   100% { opacity: 0; transform: translateY(110vh) rotate(720deg); }
 }
+
+/* 触屏设备：DDL 操作按钮常显（没有 hover 状态） */
+@media (hover: none) {
+  .mobile-ddl-actions {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
