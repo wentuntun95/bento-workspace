@@ -172,7 +172,7 @@ export function TaskCard({ type }: TaskCardProps) {
               {/* Delete */}
               <button
                 onClick={() => removeTask(task.id)}
-                className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:text-red-400"
+                className="flex-shrink-0 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity p-0.5 rounded hover:text-red-400 active:text-red-400"
                 style={{ color: "rgba(0,0,0,0.3)" }}
               >
                 <X size={11} />
