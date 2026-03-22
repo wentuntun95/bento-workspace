@@ -74,7 +74,7 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
 
   const handleClose = useCallback(() => {
     setClosing(true);
-    setTimeout(onClose, 340); // 等动画结束后再卸载
+    setTimeout(onClose, isMobile ? 520 : 360); // 动画时长略短于删除，避免白屏
   }, [onClose]);
 
   useEffect(() => {
@@ -89,7 +89,7 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
       <div style={{
         position: "fixed",
         ...(isMobile ? {
-          top: 60, left: 8, right: 8, bottom: 80,
+          top: 60, left: 24, right: 24, bottom: 160,
           borderRadius: 16,
         } : {
           right: 0, top: 95, bottom: 165, width: 300,
