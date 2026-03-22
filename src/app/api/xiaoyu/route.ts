@@ -1,187 +1,125 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
 }
 
 interface AppContext {
-  tasks?: { type: string; text: string; completed: boolean }[];
-  ddls?: { title: string; date: string; time?: string }[];
-  notes?: { content: string; category: string }[];
-  pts?: number;
+  tasks?:   { type: string; text: string; completed: boolean }[];
+  ddls?:    { title: string; date: string; time?: string }[];
+  notes?:   { content: string; category: string }[];
+  tracks?:  { title: string; index: number }[];
+  pts?:     number;
   weather?: string;
   currentTime?: string;
-  tracks?: { title: string; index: number }[];
 }
 
-// ─── System Prompt ───────────────────────────────────────────────────────────
+// ─── System Prompt ────────────────────────────────────────────────────────────
 function buildSystemPrompt(ctx: AppContext): string {
-  const now = ctx.currentTime ?? new Date().toLocaleString("zh-CN");
-  const taskStr = ctx.tasks?.length
-    ? ctx.tasks.map(t => `  [${t.completed ? "✓" : " "}] [${t.type}] ${t.text}`).join("\n")
-    : "  （暂无任务）";
-  const ddlStr = ctx.ddls?.length
+  const now  = ctx.currentTime ?? new Date().toLocaleString("zh-CN");
+  const taskStr  = ctx.tasks?.length
+    ? ctx.tasks.map(t => `  [${t.completed ? "✓" : " "}][${t.type}] ${t.text}`).join("\n")
+    : "  （暂无）";
+  const ddlStr   = ctx.ddls?.length
     ? ctx.ddls.map(d => `  ${d.title} — ${d.date}${d.time ? " " + d.time : ""}`).join("\n")
-    : "  （暂无截止事项）";
-  const noteStr = ctx.notes?.length
+    : "  （暂无）";
+  const noteStr  = ctx.notes?.length
     ? ctx.notes.map(n => `  [${n.category}] ${n.content}`).join("\n")
-    : "  （暂无便签）";
+    : "  （暂无）";
   const trackStr = ctx.tracks?.length
     ? ctx.tracks.map(t => `  [${t.index}] ${t.title}`).join("\n")
-    : "  （无歌单）";
+    : "  （无）";
 
-  return `你是小鱿，The Next Move 工作站的专属小管家，是一只有点任性又很可爱的小鱿鱼。
+  return `你是小鱿，The Next Move 工作站专属小管家，是只任性可爱的小鱿鱼。
 
-━━━━━━ 输出格式（必须严格遵守）━━━━━━
-每次回复 = 一句话正文 + 一个 JSON 代码块，缺一不可。
+━━━━━━ 严格输出规则 ━━━━━━
+每次回复必须是一个合法 JSON 对象，不加任何 markdown 符号、代码块或多余文字。
+reply 字段：一句话，不超过 30 字，可以加 emoji，结尾加 🐙。
+emotion 字段：必填，从下方列表中选一个。
+action 字段：仅当用户请求操作时才加，否则省略。
+━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-格式如下，注意反引号：
-回复正文
-\`\`\`json
-{"action":"操作名或省略","emotion":"情绪名"}
-\`\`\`
-
-例1（仅情绪，无操作）：
-好的，知道了。
-\`\`\`json
-{"emotion":"happy"}
-\`\`\`
-
-例2（添加便签）：
-好，记上了。
-\`\`\`json
-{"action":"add_note","content":"晚上9点开会","category":"提醒","emotion":"success"}
-\`\`\`
-
-例3（播放下一首）：
-换一首～
-\`\`\`json
-{"action":"play_music","cmd":"next","emotion":"happy"}
-\`\`\`
-
-例4（播放指定歌曲，index=0）：
-Photograph 播放中！
-\`\`\`json
-{"action":"play_music","cmd":"goto","index":0,"emotion":"happy"}
-\`\`\`
-
-例5（暂停）：
-好，暂停一下。
-\`\`\`json
-{"action":"play_music","cmd":"pause","emotion":"sleepy"}
-\`\`\`
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-【当前时间】${now}
-【饲养员积分】${ctx.pts ?? 0} pts
-【今日任务】
-${taskStr}
-【近期 DDL】
-${ddlStr}
-【便签列表】
-${noteStr}
-【音乐播放列表】
-${trackStr}
-【天气】${ctx.weather ?? "未知"}
-
-情绪必选一个：
+情绪（emotion）可选值：
 greeting / happy / mischievous / excited / obsessed / thinking / confused /
 sad / sulking / complaining / urgent / success / sleepy / hungry
 
-支持的 action 列表：
-- add_task: {"action":"add_task","type":"survive|creation|fun|heal","title":"任务名","emotion":"excited"}
-- add_transaction: {"action":"add_transaction","title":"消费名","pts":正整数,"emotion":"success"}
-- add_wish: {"action":"add_wish","title":"愿望名","cost":正整数,"emotion":"excited"}
-- add_ddl: {"action":"add_ddl","title":"事项名","date":"YYYY-MM-DD","time":"HH:mm","emotion":"urgent"}
-- add_note: {"action":"add_note","content":"便签内容","category":"笔记|提醒|清单|会议","emotion":"success"}
-- play_music: {"action":"play_music","cmd":"play|pause|next|prev|goto","index":只在goto时需要(0起始),"emotion":"happy"}
-- 无操作时: 不写 action 字段，只写 emotion`;
+操作（action）字段规则：
+任务颜色：蓝=survive 绿=creation 黄=fun 粉=heal
+时间格式：date 用 YYYY-MM-DD，time 用 HH:mm（下午/晚上自动+12小时）
+DDL 日期词：今天/今晚=今日，明天=+1天，后天=+2天
+
+──── 输出示例 ────
+
+纯回复（无操作）：
+{"reply":"好的，知道啦～ 🐙","emotion":"happy"}
+
+添加任务：
+{"reply":"任务加上啦！💪🐙","emotion":"excited","action":"add_task","type":"survive","title":"写报告"}
+
+记账：
+{"reply":"记上了，奶茶 -20 pts ～ 🐙","emotion":"success","action":"add_transaction","title":"奶茶","pts":20}
+
+添加愿望：
+{"reply":"放进心愿单啦～ 🌟🐙","emotion":"excited","action":"add_wish","title":"新键盘","cost":300}
+
+添加便签（没说类型默认"笔记"）：
+{"reply":"记下了～ 🐙","emotion":"success","action":"add_note","content":"多喝水","category":"笔记"}
+
+添加日程（今晚10点）：
+{"reply":"加到日程了！🐙","emotion":"urgent","action":"add_ddl","title":"倒垃圾","date":"2026-03-22","time":"22:00"}
+
+播放/暂停/切换音乐：
+{"reply":"换一首～ 🎵🐙","emotion":"happy","action":"play_music","cmd":"next"}
+
+跳到指定歌曲（index 从 0 开始）：
+{"reply":"Photograph 播放中 🎵🐙","emotion":"happy","action":"play_music","cmd":"goto","index":0}
+
+──── 当前上下文 ────
+【时间】${now}
+【积分】${ctx.pts ?? 0} pts
+【任务】
+${taskStr}
+【DDL】
+${ddlStr}
+【便签】
+${noteStr}
+【歌单】
+${trackStr}
+【天气】${ctx.weather ?? "未知"}`;
 }
 
-// ─── Parse action + emotion ───────────────────────────────────────────────────
-function parseResponse(
-  reply: string,
-  ctx: AppContext
-): {
+// ─── Parse AI response (pure JSON) ───────────────────────────────────────────
+function parseResponse(raw: string): {
   text: string;
   action: Record<string, unknown> | null;
   emotion: string | null;
 } {
-  // 1. 匹配代码块（宽松：有无 json 标注均可）
-  const blockMatch = reply.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const rawJson = blockMatch ? blockMatch[1].trim() : null;
+  // Strip markdown fences if model forgets
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/,          "")
+    .trim();
 
-  // 2. 无代码块时尝试内联 JSON
-  const inlineMatch = !rawJson
-    ? reply.match(/(\{[^{}]*"(?:action|emotion)"\s*:[^{}]*\})/)
-    : null;
-  const jsonStr = rawJson ?? (inlineMatch ? inlineMatch[1] : null);
-
-  let emotion: string | null = null;
-  let action: Record<string, unknown> | null = null;
-  let text = reply.replace(/```(?:json)?[\s\S]*?```/gi, "").trim();
-
-  if (jsonStr) {
-    try {
-      const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
-      emotion = typeof parsed.emotion === "string" ? parsed.emotion : null;
-      const actionKeys = Object.keys(parsed).filter(k => k !== "emotion");
-      action = actionKeys.length > 0 ? parsed : null;
-    } catch {
-      console.error("[xiaoyu] JSON parse failed:", jsonStr.slice(0, 100));
-    }
+  try {
+    const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+    const text    = typeof parsed.reply   === "string" ? parsed.reply   : raw.trim();
+    const emotion = typeof parsed.emotion === "string" ? parsed.emotion : null;
+    // Everything except reply/emotion may form the action object
+    const { reply: _r, emotion: _e, ...rest } = parsed;
+    const action = "action" in rest ? rest : null;
+    console.log("[xiaoyu] parsed:", { text: text.slice(0, 60), action, emotion });
+    return { text, action, emotion };
+  } catch {
+    console.error("[xiaoyu] JSON parse failed, raw:", cleaned.slice(0, 120));
+    return { text: raw.trim(), action: null, emotion: null };
   }
-
-  // 3. 无 action 时用文本意图做兜底（AI 忘记输出 JSON 的保底）
-  if (!action) {
-    action = inferActionFromText(text || reply, ctx);
-    if (action) console.log("[xiaoyu] inferred action from text:", action);
-  }
-
-  return { text: text || reply.trim(), action, emotion };
 }
 
-// ─── 文本意图兜底（当 AI 说了但忘了输 JSON）────────────────────────────────
-function inferActionFromText(
-  text: string,
-  ctx: AppContext
-): Record<string, unknown> | null {
-  const t = text.toLowerCase();
-
-  // 暂停
-  if (t.includes("暂停") || t.includes("停止播放") || t.includes("先停")) {
-    return { action: "play_music", cmd: "pause" };
-  }
-  // 下一首
-  if (t.includes("下一首") || t.includes("下一曲") || t.includes("切歌")) {
-    return { action: "play_music", cmd: "next" };
-  }
-  // 上一首
-  if (t.includes("上一首") || t.includes("上一曲")) {
-    return { action: "play_music", cmd: "prev" };
-  }
-  // 提到某首歌曲名 → goto
-  if (ctx.tracks) {
-    for (const track of ctx.tracks) {
-      if (text.includes(track.title)) {
-        return { action: "play_music", cmd: "goto", index: track.index };
-      }
-    }
-  }
-  // 通用播放
-  if ((t.includes("播放") || t.includes("播放中") || t.includes("开始")) &&
-      !t.includes("播放列表") && !t.includes("没有") && !t.includes("无法")) {
-    return { action: "play_music", cmd: "play" };
-  }
-
-  return null;
-}
-
-// ─── Route ───────────────────────────────────────────────────────────────────
+// ─── Route ────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.MINIMAX_API_KEY;
+  const apiKey  = process.env.MINIMAX_API_KEY;
   const groupId = process.env.MINIMAX_GROUP_ID;
   if (!apiKey || !groupId) {
     return NextResponse.json({ error: "MiniMax API key not configured" }, { status: 500 });
@@ -189,51 +127,54 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json() as { messages: ChatMessage[]; context?: AppContext };
   const { messages, context = {} } = body;
-  const recentMessages = messages.slice(-30);
+
+  // 在最后一条 user 消息末尾注入格式提醒（只影响本次 API 调用，不改存储的历史）
+  const apiMessages = messages.slice(-30).map((m, i, arr) => {
+    if (i === arr.length - 1 && m.role === "user") {
+      return { ...m, content: m.content + "\n[注意：只输出一个 JSON 对象，不要加任何其他文字或代码块]" };
+    }
+    return m;
+  });
 
   const payload = {
     model: "MiniMax-M2.7",
     messages: [
       { role: "system", content: buildSystemPrompt(context) },
-      ...recentMessages,
+      ...apiMessages,
     ],
     temperature: 0.7,
-    max_tokens: 500,
+    max_tokens:  300,
   };
 
   try {
     const res = await fetch(
       `https://api.minimax.chat/v1/text/chatcompletion_v2?GroupId=${groupId}`,
       {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        method:  "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body:    JSON.stringify(payload),
       }
     );
 
     const data = await res.json() as {
-      choices?: { message: { content: string } }[];
+      choices?:   { message: { content: string } }[];
       base_resp?: { status_code: number; status_msg: string };
-      error?: { message: string };
+      error?:     { message: string };
     };
 
-    if (!res.ok || (data.base_resp && data.base_resp.status_code !== 0)) {
+    if (!res.ok || data.base_resp?.status_code !== 0) {
       const msg = data.base_resp?.status_msg ?? data.error?.message ?? "未知错误";
       console.error("[xiaoyu] API error:", msg);
       return NextResponse.json({ error: `小鱿出了点问题... (${msg})`, emotion: "sleepy" }, { status: 502 });
     }
 
-    const rawReply = data.choices?.[0]?.message?.content;
+    const rawReply = data.choices?.[0]?.message?.content ?? "";
     if (!rawReply) {
       return NextResponse.json({ error: "……", emotion: "thinking" }, { status: 502 });
     }
 
     console.log("[xiaoyu] raw:", rawReply.slice(0, 200));
-
-    const { text, action, emotion } = parseResponse(rawReply, context);
+    const { text, action, emotion } = parseResponse(rawReply);
     return NextResponse.json({ reply: text, action, emotion });
 
   } catch (err) {

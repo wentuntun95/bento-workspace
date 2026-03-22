@@ -17,7 +17,18 @@ const caveat = Caveat({
 
 export const metadata: Metadata = {
   title: "The Next Move",
-  description: "Where you go, you go forward.",
+  description: "你的专属能量工作站",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    viewportFit: "cover",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Next Move",
+  },
+  themeColor: "#faf9f7",
 };
 
 export default function RootLayout({

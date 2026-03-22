@@ -142,7 +142,7 @@ function useSpeechRecognition(onResult: (text: string) => void) {
 // ─── Main component ───────────────────────────────────────────
 export function XiaoYouReminder() {
   const {
-    ddls, tasks, taskHistory, transactions, tracks, notes,
+    ddls, tasks, taskHistory, transactions, tracks, notes, weather,
     addTask, addTransaction, addWish, addDdl, addNote, triggerMusicCommand,
   } = useWorkspaceStore();
 
@@ -271,19 +271,21 @@ export function XiaoYouReminder() {
           addTask(action.title, action.type as "survive"|"creation"|"fun"|"heal");
         break;
       case "add_transaction":
-        if (action.title && action.pts)
-          addTransaction(action.title, -Math.abs(action.pts), undefined);
+        // pts 可以为 0（未指定金额时 AI 可能省略），不强求非零
+        if (action.title)
+          addTransaction(action.title, -Math.abs((action.pts as number) ?? 0), undefined);
         break;
       case "add_wish":
-        if (action.title && action.cost)
-          addWish(action.title, action.cost, undefined);
+        // cost 同上，允许为 0
+        if (action.title)
+          addWish(action.title, (action.cost as number) ?? 0, undefined);
         break;
       case "add_ddl":
         if (action.title && action.date)
           addDdl(action.title, new Date(action.date), action.time ?? "", undefined);
         break;
       case "add_note": {
-        const noteContent = action.content ?? action.title; // 兜底：部分模型用 title
+        const noteContent = action.content ?? action.title;
         if (noteContent)
           addNote(noteContent, (action.category as "笔记"|"提醒"|"清单"|"会议") ?? "笔记");
         break;
@@ -311,6 +313,9 @@ export function XiaoYouReminder() {
       notes: notes.map(n => ({ content: n.content, category: n.category })),
       tracks: tracks.map((t, i) => ({ title: t.title, index: i })),
       pts,
+      weather: weather
+        ? `${weather.city} ${weather.temp}°C，${weather.label}，最高${weather.tempMax}°C最低${weather.tempMin}°C`
+        : undefined,
       currentTime: new Date().toLocaleString("zh-CN"),
     };
 

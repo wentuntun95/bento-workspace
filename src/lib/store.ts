@@ -153,10 +153,13 @@ interface WorkspaceState {
   addTrack: (title: string, url: string) => void;
   removeTrack: (id: string) => void;
   setCurrentTrack: (id: string) => void;
-  // 小鱿控制音乐的璫态信号（不持久化）
+  // 小鱿控制音乐的滨态信号（不持久化）
   musicCommand: { cmd: 'play' | 'pause' | 'next' | 'prev' | 'goto'; index?: number } | null;
   triggerMusicCommand: (cmd: { cmd: 'play' | 'pause' | 'next' | 'prev' | 'goto'; index?: number }) => void;
   clearMusicCommand: () => void;
+  // 天气（不持久化，由 WeatherCard 运行时填入）
+  weather: { temp: number; tempMax: number; tempMin: number; label: string; city: string } | null;
+  setWeather: (data: { temp: number; tempMax: number; tempMin: number; label: string; city: string }) => void;
 
   // C系 快捷网址
   bookmarks: Bookmark[];
@@ -185,6 +188,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       tracks: DEFAULT_TRACKS,
       currentTrackId: DEFAULT_TRACKS[0].id,
       musicCommand: null,
+      weather: null,
       bookmarks: DEFAULT_BOOKMARKS,
 
       addTask: (text, type) => set((state) => ({
@@ -431,6 +435,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
       triggerMusicCommand: (cmd) => set({ musicCommand: cmd }),
       clearMusicCommand: () => set({ musicCommand: null }),
+      setWeather: (data) => set({ weather: data }),
 
 
       addBookmark: (title, url, emoji) => set((state) => ({

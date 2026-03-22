@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useId } from "react";
+import { useWorkspaceStore } from "@/lib/store";
 
 type Scene = "sunny" | "cloudy" | "rainy" | "snowy" | "stormy" | "night" | "windy";
 interface WMOEntry { label: string; scene: Scene }
@@ -325,6 +326,7 @@ function WeatherIllust({ scene }: { scene: Scene }) {
 interface WeatherData { temp: number; tempMax: number; tempMin: number; code: number; city: string; }
 
 export function WeatherCard() {
+  const setWeather = useWorkspaceStore(s => s.setWeather);
   const [data,    setData]    = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
@@ -341,12 +343,21 @@ export function WeatherCard() {
           const w = await wRes.json();
           const g = await gRes.json();
           const a = g.address;
-          setData({
+          const weatherData: WeatherData = {
             temp:    Math.round(w.current.temperature_2m),
             tempMax: Math.round(w.daily.temperature_2m_max[0]),
             tempMin: Math.round(w.daily.temperature_2m_min[0]),
             code:    w.current.weathercode,
             city:    a.city || a.county || a.state || a.country || "未知",
+          };
+          setData(weatherData);
+          // 写入 store，供小鱿 context 使用（不用 previewScene，只用真实天气）
+          setWeather({
+            temp:    weatherData.temp,
+            tempMax: weatherData.tempMax,
+            tempMin: weatherData.tempMin,
+            label:   getEntry(weatherData.code).label,
+            city:    weatherData.city,
           });
         } catch { setError("获取失败"); }
         finally  { setLoading(false); }
