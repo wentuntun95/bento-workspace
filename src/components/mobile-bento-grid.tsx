@@ -331,14 +331,12 @@ export function MobileBentoGrid({
 
   return (
     <div style={{
-      height: "100dvh", display: "flex", flexDirection: "column",
+      height: "100%", display: "flex", flexDirection: "column",
       overflow: "hidden",
-      backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.045) 1px, transparent 1px)",
-      backgroundSize: "20px 20px",
     }}>
       <MobileHeader onReport={onReport} onLogin={onLogin} onApply={onApply} />
 
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", padding: "0 14px 14px" }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", touchAction: "pan-y", padding: "0 14px 14px" }}>
         {activeTab === "work"   && <WorkTab />}
         {activeTab === "rest"   && <RestTab />}
         {activeTab === "reward" && <RewardTab />}
