@@ -67,7 +67,7 @@ function WorkTab() {
       {/* 周历 — 全宽固定高度，内部滑动应用 h-full 必须有显式 height */}
       <CardSlot h="200px" noPad><CalendarCard /></CardSlot>
       {/* 能量树 — 全宽 */}
-      <CardSlot h="180px" noPad><EnergyTreeCard /></CardSlot>
+      <CardSlot h="260px" noPad><EnergyTreeCard /></CardSlot>
     </div>
   );
 }

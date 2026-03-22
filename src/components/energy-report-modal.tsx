@@ -68,6 +68,9 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
   const year    = new Date().getFullYear();
 
   const [closing, setClosing] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => { setIsMobile(window.innerWidth < 768); }, []);
 
   const handleClose = useCallback(() => {
     setClosing(true);
@@ -82,21 +85,23 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
 
   const drawer = (
     <>
-      {/* 书本主体：右侧固定，上下不顶满，书本比例 */}
+      {/* 弹窗主体：手机端从顶部向下滑入，桌面端从右侧滑入 */}
       <div style={{
         position: "fixed",
-        right: 0,
-        top: 95,         // Header / 成就按钮 下沿
-        bottom: 165,     // weather 卡底边（viewport 754 - rect.bottom 589）
+        ...(isMobile ? {
+          top: 60, left: 8, right: 8, bottom: 20,
+          borderRadius: 16,
+        } : {
+          right: 0, top: 95, bottom: 165, width: 300,
+          borderRadius: "12px 0 0 12px",
+        }),
         zIndex: 200,
-        width: 300,
         display: "flex",
-        borderRadius: "12px 0 0 12px",
         overflow: "hidden",
-        boxShadow: "-8px 0 32px rgba(0,0,0,0.18)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
         animation: closing
-          ? "slideOutRight 0.35s cubic-bezier(0.22,1,0.36,1) forwards"
-          : "slideInRight  0.35s cubic-bezier(0.22,1,0.36,1)",
+          ? (isMobile ? "slideOutUp 0.35s cubic-bezier(0.22,1,0.36,1) forwards" : "slideOutRight 0.35s cubic-bezier(0.22,1,0.36,1) forwards")
+          : (isMobile ? "slideInDown 0.35s cubic-bezier(0.22,1,0.36,1)" : "slideInRight  0.35s cubic-bezier(0.22,1,0.36,1)"),
       }}>
         {/* 书脊（水彩晕染） */}
         <div style={{
@@ -224,6 +229,14 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
         @keyframes slideOutRight {
           from { transform: translateX(0); }
           to   { transform: translateX(100%); }
+        }
+        @keyframes slideInDown {
+          from { transform: translateY(-110%); opacity: 0; }
+          to   { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideOutUp {
+          from { transform: translateY(0); opacity: 1; }
+          to   { transform: translateY(-110%); opacity: 0; }
         }
       `}</style>
     </>
