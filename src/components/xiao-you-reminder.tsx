@@ -75,6 +75,15 @@ function minutesUntil(ddl: DDLItem): number {
   return Math.floor((target.getTime() - Date.now()) / 60000);
 }
 
+// 返回当前分钟数对应的提醒阈值（null = 不在提醒窗口内）
+function getAlertThreshold(mins: number): number | null {
+  if (mins >= 0 && mins <= 1)  return 1;
+  if (mins >= 0 && mins <= 5)  return 5;
+  if (mins >= 0 && mins <= 15) return 15;
+  if (mins >= 0 && mins <= 30) return 30;
+  return null;
+}
+
 // ─── 随机开场白 ──────────────────────────────────────────────
 const GREETINGS = [
   "嗯？饲养员来了 👀",
@@ -232,14 +241,18 @@ export function XiaoYouReminder({ isMobile = false }: { isMobile?: boolean }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatOpen]);
 
-  // DDL watch
+  // DDL watch — 按阈值(30/15/5/1分钟)各提醒一次，关闭后记录阈值不再重复
   const checkDdl = useCallback(() => {
     for (const ddl of ddls) {
       const mins = minutesUntil(ddl);
-      if (mins >= 0 && mins <= 30 && !dismissed.has(ddl.id)) {
-        setAlert(ddl); setMinsLeft(mins); setAlertVisible(true);
-        setEmote(mins <= 5 ? IDLE_EMOTES[5] : IDLE_EMOTES[3]);
-        return;
+      const threshold = getAlertThreshold(mins);
+      if (threshold !== null) {
+        const key = `${ddl.id}-${threshold}`;
+        if (!dismissed.has(key)) {
+          setAlert(ddl); setMinsLeft(mins); setAlertVisible(true);
+          setEmote(mins <= 5 ? IDLE_EMOTES[5] : IDLE_EMOTES[3]);
+          return;
+        }
       }
     }
     setAlert(prev => {
@@ -380,7 +393,11 @@ export function XiaoYouReminder({ isMobile = false }: { isMobile?: boolean }) {
     setEmote(randomEmote(emote.src));
   }
   function dismissAlert() {
-    if (alert) setDismissed(prev => new Set([...prev, alert.id]));
+    if (alert) {
+      const threshold = getAlertThreshold(minsLeft);
+      const key = `${alert.id}-${threshold ?? 0}`;
+      setDismissed(prev => new Set([...prev, key]));
+    }
     setAlertVisible(false); setAlert(null);
     setEmote(randomEmote(emote.src));
   }
@@ -468,7 +485,7 @@ export function XiaoYouReminder({ isMobile = false }: { isMobile?: boolean }) {
       {/* ── 聊天面板 ── */}
       {chatOpen && (
         <div
-          className="absolute bottom-[90px] right-0 w-72 rounded-2xl shadow-2xl border border-black/8 overflow-hidden"
+          className={`absolute bottom-[90px] w-72 rounded-2xl shadow-2xl border border-black/8 overflow-hidden ${!isMobile && pos && pos.x < (typeof window !== 'undefined' ? window.innerWidth / 2 : 400) ? 'left-0' : 'right-0'}`}
           style={{ background: "rgba(255,255,255,0.97)", backdropFilter: "blur(16px)" }}
           onPointerDown={e => e.stopPropagation()}
         >

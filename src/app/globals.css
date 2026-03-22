@@ -85,10 +85,10 @@ body {
 
 /* +10 积分飞出动效 */
 @keyframes pointsPop {
-  0%   { opacity: 0; transform: scale(0.6); }
-  25%  { opacity: 1; transform: scale(1.2); }
-  65%  { opacity: 1; transform: scale(1.0); }
-  100% { opacity: 0; transform: scale(0.9); }
+  0%   { opacity: 1; transform: translateY(0)   scale(1.0); }
+  35%  { opacity: 1; transform: translateY(-6px) scale(1.2); }
+  70%  { opacity: 1; transform: translateY(-6px) scale(1.0); }
+  100% { opacity: 0; transform: translateY(-6px) scale(0.9); }
 }
 
 /* 彩带庆祝 */

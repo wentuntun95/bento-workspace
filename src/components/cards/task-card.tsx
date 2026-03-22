@@ -184,11 +184,9 @@ export function TaskCard({ type }: TaskCardProps) {
         {/* Inline input */}
         {adding && (
           <div
-            className="flex items-center gap-2 px-2 py-[5px] rounded-lg bg-white/70 border"
+            className="flex items-center rounded-lg bg-white/70 border"
             style={{ borderColor: `${t.base}60` }}
           >
-            <div className="flex-shrink-0 w-[18px] h-[18px] rounded-full border-2 bg-transparent"
-                 style={{ borderColor: t.base }} />
             <input
               ref={inputRef}
               value={text}
@@ -200,13 +198,13 @@ export function TaskCard({ type }: TaskCardProps) {
                 if (e.key === "Escape") { setAdding(false); setText(""); }
               }}
               placeholder="添加任务…"
-              className="flex-1 text-[12px] bg-transparent outline-none"
+              className="flex-1 text-[12px] bg-transparent outline-none py-[5px] pl-2 min-w-0"
               style={{ fontFamily: "var(--font-caveat, cursive)", color: t.dark }}
             />
-            <button onClick={submit} disabled={!text.trim()}
-                    className="flex-shrink-0 transition-opacity"
-                    style={{ opacity: 1, color: text.trim() ? t.base : `${t.base}50` }}>
-              <Check size={13} />
+            <button onClick={submit}
+                    className="flex-shrink-0 transition-colors"
+                    style={{ padding: "4px 8px", fontSize: 14, color: text.trim() ? t.base : `${t.base}50` }}>
+              ✓
             </button>
           </div>
         )}
