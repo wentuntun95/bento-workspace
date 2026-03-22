@@ -58,10 +58,10 @@ function WorkTab() {
         <CardSlot minH="190px"><TaskCard type="fun" title="Fun" /></CardSlot>
         <CardSlot minH="190px"><TaskCard type="heal" title="Heal" /></CardSlot>
       </div>
-      {/* 周历 + 能量树 并或排 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <CardSlot minH="220px" noPad><CalendarCard /></CardSlot>
-        <CardSlot minH="220px" noPad><EnergyTreeCard /></CardSlot>
+      {/* 周历 + 能量树 并排，固定高度防止树被拉高拉窄 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, height: 240 }}>
+        <CardSlot noPad><CalendarCard /></CardSlot>
+        <CardSlot noPad><EnergyTreeCard /></CardSlot>
       </div>
     </div>
   );
@@ -268,7 +268,7 @@ function TabBar({ active, onSwitch }: { active: TabId; onSwitch: (id: TabId) => 
 }
 
 // ─── 手机版 Header ────────────────────────────────────────────────────────────
-function MobileHeader({ onReport, onLogin }: { onReport: () => void; onLogin: () => void }) {
+function MobileHeader({ onReport, onLogin, onApply }: { onReport: () => void; onLogin: () => void; onApply: () => void }) {
   const { user, mode, signOut } = useAuth();
   return (
     <header style={{
@@ -282,17 +282,22 @@ function MobileHeader({ onReport, onLogin }: { onReport: () => void; onLogin: ()
       }}>
         The Next Move
       </h1>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
         {mode === "anon" ? (
-          <button onClick={onLogin} style={{
-            fontSize: 11, color: "#9A7850", background: "none",
-            border: "1px solid rgba(180,140,70,0.3)", borderRadius: 7,
-            padding: "4px 10px", cursor: "pointer",
-          }}>登录</button>
+          <>
+            <button onClick={onLogin} style={{
+              fontSize: 11, color: "#9A7850", background: "none",
+              border: "1px solid rgba(180,140,70,0.3)", borderRadius: 7,
+              padding: "4px 9px", cursor: "pointer",
+            }}>登录</button>
+            <button onClick={onApply} style={{
+              fontSize: 11, color: "#9A7850", background: "none",
+              border: "1px solid rgba(180,140,70,0.3)", borderRadius: 7,
+              padding: "4px 9px", cursor: "pointer",
+            }}>申请</button>
+          </>
         ) : mode === "authenticated" && user ? (
-          <span
-            onClick={signOut}
-            title="点击登出"
+          <span onClick={signOut} title="点击登出"
             style={{ fontSize: 11, color: "#9A7850", cursor: "pointer" }}
           >{user.email?.split("@")[0]} · 登出</span>
         ) : null}
@@ -311,9 +316,11 @@ function MobileHeader({ onReport, onLogin }: { onReport: () => void; onLogin: ()
 export function MobileBentoGrid({
   onReport,
   onLogin,
+  onApply,
 }: {
   onReport: () => void;
   onLogin: () => void;
+  onApply: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("work");
 
@@ -324,7 +331,7 @@ export function MobileBentoGrid({
       backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.045) 1px, transparent 1px)",
       backgroundSize: "20px 20px",
     }}>
-      <MobileHeader onReport={onReport} onLogin={onLogin} />
+      <MobileHeader onReport={onReport} onLogin={onLogin} onApply={onApply} />
 
       <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "0 14px 14px" }}>
         {activeTab === "work"   && <WorkTab />}

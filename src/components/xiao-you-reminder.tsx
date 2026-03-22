@@ -403,7 +403,7 @@ export function XiaoYouReminder({ isMobile = false }: { isMobile?: boolean }) {
           fontSize: 12, color: "rgba(0,0,0,0.5)", fontWeight: 600,
         }}
       >
-        🐙 召唤
+        召唤小鱿
       </button>
     );
   }
