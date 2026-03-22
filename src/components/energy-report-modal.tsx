@@ -89,7 +89,7 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
       <div style={{
         position: "fixed",
         ...(isMobile ? {
-          top: 60, left: 8, right: 8, bottom: 20,
+          top: 60, left: 8, right: 8, bottom: 80,
           borderRadius: 16,
         } : {
           right: 0, top: 95, bottom: 165, width: 300,
@@ -100,8 +100,8 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
         overflow: "hidden",
         boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
         animation: closing
-          ? (isMobile ? "slideOutUp 0.35s cubic-bezier(0.22,1,0.36,1) forwards" : "slideOutRight 0.35s cubic-bezier(0.22,1,0.36,1) forwards")
-          : (isMobile ? "slideInDown 0.35s cubic-bezier(0.22,1,0.36,1)" : "slideInRight  0.35s cubic-bezier(0.22,1,0.36,1)"),
+          ? (isMobile ? "slideOutUp 0.5s cubic-bezier(0.22,1,0.36,1) forwards" : "slideOutRight 0.35s cubic-bezier(0.22,1,0.36,1) forwards")
+          : (isMobile ? "slideInDown 0.5s cubic-bezier(0.22,1,0.36,1)" : "slideInRight  0.35s cubic-bezier(0.22,1,0.36,1)"),
       }}>
         {/* 书脊（水彩晕染） */}
         <div style={{

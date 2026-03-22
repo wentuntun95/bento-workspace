@@ -25,18 +25,20 @@ function CardSlot({
   minH,
   maxH,
   h,
+  bg,
   noPad = false,
 }: {
   children: React.ReactNode;
   minH?: string;
   maxH?: string;
   h?: string;
+  bg?: string;
   noPad?: boolean;
 }) {
   return (
     <div
       style={{
-        background: "rgba(255,255,255,0.78)",
+        background: bg ?? "rgba(255,255,255,0.78)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         borderRadius: 20,
@@ -67,7 +69,7 @@ function WorkTab() {
       {/* 周历 — 全宽固定高度，内部滑动应用 h-full 必须有显式 height */}
       <CardSlot h="200px" noPad><CalendarCard /></CardSlot>
       {/* 能量树 — 全宽 */}
-      <CardSlot h="260px" noPad><EnergyTreeCard /></CardSlot>
+      <CardSlot h="260px" noPad bg="#e2f5e2"><EnergyTreeCard /></CardSlot>
     </div>
   );
 }
@@ -136,7 +138,7 @@ function NoteList() {
           <button
             onClick={() => { if (draft.trim()) { addNote(draft.trim(), "笔记"); setDraft(""); setAdding(false); } }}
             style={{ fontSize: 11, color: "#B8860B", background: "rgba(251,188,5,0.12)", border: "none", borderRadius: 6, padding: "4px 8px", cursor: "pointer" }}
-          >加</button>
+          >✓</button>
         </div>
       )}
       {notes.length === 0 ? (

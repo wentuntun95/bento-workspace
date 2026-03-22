@@ -28,7 +28,7 @@ function PointsPop({ onDone }: { onDone: () => void }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <span
-      className="absolute left-2 top-1 text-[16px] font-black text-amber-500 pointer-events-none select-none z-10 whitespace-nowrap"
+      className="absolute right-7 top-0 text-[13px] font-black text-amber-500 pointer-events-none select-none z-10 whitespace-nowrap"
       style={{ animation: "pointsPop 0.55s ease-out forwards" }}
     >
       +10
@@ -200,12 +200,12 @@ export function TaskCard({ type }: TaskCardProps) {
                 if (e.key === "Escape") { setAdding(false); setText(""); }
               }}
               placeholder="添加任务…"
-              className="flex-1 text-[12px] bg-transparent outline-none border-b"
-              style={{ borderColor: `${t.base}50`, fontFamily: "var(--font-caveat, cursive)", color: t.dark }}
+              className="flex-1 text-[12px] bg-transparent outline-none"
+              style={{ fontFamily: "var(--font-caveat, cursive)", color: t.dark }}
             />
             <button onClick={submit} disabled={!text.trim()}
                     className="flex-shrink-0 transition-opacity"
-                    style={{ opacity: text.trim() ? 1 : 0.3, color: t.base }}>
+                    style={{ opacity: 1, color: text.trim() ? t.base : `${t.base}50` }}>
               <Check size={13} />
             </button>
           </div>
