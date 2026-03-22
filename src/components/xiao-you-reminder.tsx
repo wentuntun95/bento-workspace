@@ -485,24 +485,27 @@ export function XiaoYouReminder() {
         onClick={() => { setChatOpen(o => !o); setAlertVisible(false); }}
         onPointerDown={e => e.stopPropagation()}
         title={chatOpen ? "关闭对话" : "和小鱿说话"}
-        className="absolute -top-9 left-1/2 -translate-x-1/2 flex items-end justify-center gap-[3px] h-8 px-3 rounded-xl transition-all"
+        className="absolute"
         style={{
-          background: chatOpen ? "rgba(139,92,246,0.18)" : "rgba(255,255,255,0.85)",
-          boxShadow: chatOpen ? "0 2px 12px rgba(139,92,246,0.25)" : "0 2px 8px rgba(0,0,0,0.12)",
-          border: "1px solid rgba(139,92,246,0.15)",
+          top: -8, right: -10,
+          background: "none", border: "none", padding: 4, cursor: "pointer",
+          transform: chatOpen ? "scale(1.05)" : "scale(1)",
+          transition: "transform 0.2s",
+          filter: chatOpen ? "drop-shadow(0 0 6px rgba(139,92,246,0.6))" : "drop-shadow(0 1px 3px rgba(0,0,0,0.18))",
         }}
       >
-        {[10, 16, 12, 8, 14].map((h, i) => (
-          <span key={i} style={{
-            display: "inline-block",
-            width: 3,
-            height: h,
-            borderRadius: 2,
-            background: chatOpen ? "#7c3aed" : "#a78bfa",
-            // delay 内联入 animation shorthand，避免 React animation+animationDelay 冲突警告
-            animation: chatOpen ? `waveBar${i} 0.8s ease-in-out ${(i * 0.12).toFixed(2)}s infinite` : "none",
-          }} />
-        ))}
+        {/* Gemini-style 4 oval icon */}
+        <svg width="46" height="34" viewBox="0 0 46 32" fill="none">
+          <ellipse cx="7"  cy="16" rx="5.5" ry="10"
+            fill={chatOpen ? "#7c3aed" : "rgba(196,181,253,0.92)"} />
+          <ellipse cx="19" cy="16" rx="6"   ry="11.5"
+            fill={chatOpen ? "#8b5cf6" : "rgba(167,139,250,0.95)"} />
+          <ellipse cx="31" cy="16" rx="6"   ry="11.5"
+            fill={chatOpen ? "#8b5cf6" : "rgba(167,139,250,0.95)"} />
+          <ellipse cx="42" cy="16" rx="4.5" ry="9"
+            transform="rotate(-14 42 16)"
+            fill={chatOpen ? "#7c3aed" : "rgba(196,181,253,0.85)"} />
+        </svg>
       </button>
 
       {/* 小鱿本体（拖拽专用，不打开对话） */}
