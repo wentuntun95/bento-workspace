@@ -240,10 +240,13 @@ function DayRow({ day, weekdayShort, ddls, onFormOpen }: {
   const isCurrentDay = isToday(day);
   const pastDay = isPastDate(day);
 
-  // 挂载后自动滚动到当天行
+  // 桌面端自动滚动到当天（移动端由外层卡片内部滚动容器处理，不在此触发）
   useEffect(() => {
     if (isCurrentDay && rowRef.current) {
-      rowRef.current.scrollIntoView({ block: "start", behavior: "instant" });
+      const scrollParent = rowRef.current.closest("[data-calendar-scroll]");
+      if (scrollParent) {
+        scrollParent.scrollTop = rowRef.current.offsetTop;
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -364,7 +367,7 @@ export function CalendarCard() {
       </div>
 
       {/* 7 day rows */}
-      <div className="flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-none">
+      <div data-calendar-scroll className="flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-none">
         {weekDays.map((day, idx) => (
           <DayRow
             key={format(day, "yyyy-MM-dd")}

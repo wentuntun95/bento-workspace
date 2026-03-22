@@ -156,7 +156,7 @@ export default function Home() {
   // ── 手机端布局 ──────────────────────────────────────────────────────────────
   if (isMobile) {
     return (
-      <div style={{ position: "fixed", inset: 0, height: "100svh", overflow: "hidden" }}>
+      <div style={{ position: "fixed", inset: 0, overflow: "hidden" }}>
         {mode === null && <LoginModal />}
         {showLogin && mode === "anon" && (
           <LoginModal canClose initialView={loginView} onClose={() => setShowLogin(false)} />

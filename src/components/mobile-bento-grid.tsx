@@ -24,11 +24,13 @@ function CardSlot({
   children,
   minH,
   maxH,
+  h,
   noPad = false,
 }: {
   children: React.ReactNode;
   minH?: string;
   maxH?: string;
+  h?: string;
   noPad?: boolean;
 }) {
   return (
@@ -42,6 +44,7 @@ function CardSlot({
         overflow: "hidden",
         minHeight: minH,
         maxHeight: maxH,
+        height: h,
         padding: noPad ? 0 : "14px 16px",
       }}
     >
@@ -61,10 +64,10 @@ function WorkTab() {
         <CardSlot minH="190px"><TaskCard type="fun" title="Fun" /></CardSlot>
         <CardSlot minH="190px"><TaskCard type="heal" title="Heal" /></CardSlot>
       </div>
-      {/* 周历 — 全宽，固定高度，内部滚动 */}
-      <CardSlot minH="200px" maxH="200px" noPad><CalendarCard /></CardSlot>
+      {/* 周历 — 全宽固定高度，内部滑动应用 h-full 必须有显式 height */}
+      <CardSlot h="200px" noPad><CalendarCard /></CardSlot>
       {/* 能量树 — 全宽 */}
-      <CardSlot minH="180px" maxH="200px" noPad><EnergyTreeCard /></CardSlot>
+      <CardSlot h="180px" noPad><EnergyTreeCard /></CardSlot>
     </div>
   );
 }
@@ -328,18 +331,18 @@ export function MobileBentoGrid({
 
   return (
     <div style={{
-      height: "100svh", display: "flex", flexDirection: "column",
+      height: "100dvh", display: "flex", flexDirection: "column",
       overflow: "hidden",
       backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.045) 1px, transparent 1px)",
       backgroundSize: "20px 20px",
     }}>
       <MobileHeader onReport={onReport} onLogin={onLogin} onApply={onApply} />
 
-      <main style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", padding: "0 14px 14px" }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", padding: "0 14px 14px" }}>
         {activeTab === "work"   && <WorkTab />}
         {activeTab === "rest"   && <RestTab />}
         {activeTab === "reward" && <RewardTab />}
-      </main>
+      </div>
 
       <TabBar active={activeTab} onSwitch={setActiveTab} />
     </div>
