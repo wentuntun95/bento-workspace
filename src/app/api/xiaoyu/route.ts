@@ -9,6 +9,7 @@ interface ChatMessage {
 interface AppContext {
   tasks?: { type: string; text: string; completed: boolean }[];
   ddls?: { title: string; date: string; time?: string }[];
+  notes?: { content: string; category: string }[];
   pts?: number;
   weather?: string;
   currentTime?: string;
@@ -24,6 +25,9 @@ function buildSystemPrompt(ctx: AppContext): string {
   const ddlStr = ctx.ddls?.length
     ? ctx.ddls.map(d => `  ${d.title} — ${d.date}${d.time ? " " + d.time : ""}`).join("\n")
     : "  （暂无截止事项）";
+  const noteStr = ctx.notes?.length
+    ? ctx.notes.map(n => `  [${n.category}] ${n.content}`).join("\n")
+    : "  （暂无便签）";
   const trackStr = ctx.tracks?.length
     ? ctx.tracks.map(t => `  [${t.index}] ${t.title}`).join("\n")
     : "  （无歌单）";
@@ -36,12 +40,14 @@ function buildSystemPrompt(ctx: AppContext): string {
 ${taskStr}
 【近期 DDL】
 ${ddlStr}
+【便签列表】
+${noteStr}
 【音乐播放列表】
 ${trackStr}
 【天气】${ctx.weather ?? "未知"}
 
 回复规范：
-- 中文，60字以内（讲笑话或内容多时可适当超出）
+- 中文，60字以内（内容多时可适当超出）
 - 直接说结论，不要重复饲养员说的话
 - 每次附一个 emotion 情绪标签
 
@@ -49,27 +55,35 @@ ${trackStr}
 greeting / happy / mischievous / excited / obsessed / thinking / confused /
 sad / sulking / complaining / urgent / success / sleepy / hungry
 
-支持的操作（需要执行时，在回复后附加代码块）：
+【重要】需要执行操作时，必须在回复文字后面单独一行输出如下格式的 JSON 代码块（不要省略，这是执行操作的唯一方式）：
+\`\`\`json
+{"action":"xxx",...,"emotion":"xxx"}
+\`\`\`
+
+支持的操作：
 - add_task: {"action":"add_task","type":"survive|creation|fun|heal","title":"任务名","emotion":"excited"}
 - add_transaction: {"action":"add_transaction","title":"消费名","pts":正整数,"emotion":"success"}
 - add_wish: {"action":"add_wish","title":"愿望名","cost":正整数,"emotion":"excited"}
 - add_ddl: {"action":"add_ddl","title":"事项名","date":"YYYY-MM-DD","time":"HH:mm","emotion":"urgent"}
 - add_note: {"action":"add_note","content":"便签内容","category":"笔记|提醒|清单|会议","emotion":"success"}
 - play_music: {"action":"play_music","cmd":"play|pause|next|prev|goto","index":数字(goto用),"emotion":"happy"}
-- 仅情绪: {"emotion":"happy"}
+- 仅情绪变化: {"emotion":"happy"}
 
-示例：
+示例1（添加便签）：
 用户："帮我加一个提醒：晚上9点开会"
-小鱿：好，记上了。
+回复：好，记上了。
 \`\`\`json
 {"action":"add_note","content":"晚上9点开会","category":"提醒","emotion":"success"}
 \`\`\`
 
+示例2（播放音乐）：
 用户："播放下一首"
-小鱿：换一首吧～
+回复：换一首吧～
 \`\`\`json
 {"action":"play_music","cmd":"next","emotion":"happy"}
-\`\`\``;
+\`\`\`
+
+【注意】仅在需要执行操作时才输出代码块；纯聊天时只输出文字+emotion代码块。`;
 }
 
 // ─── Parse action + emotion from reply ───────────────────────────────────────
@@ -78,16 +92,42 @@ function parseResponse(reply: string): {
   action: Record<string, unknown> | null;
   emotion: string | null;
 } {
-  const match = reply.match(/```json\s*([\s\S]*?)```/);
-  if (!match) return { text: reply.trim(), action: null, emotion: null };
+  // 宽松匹配：支持 ```json、``` 或直接内联的 { "action":... }
+  const blockMatch = reply.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const rawJson = blockMatch ? blockMatch[1].trim() : null;
+
+  // 如果没有代码块，尝试直接匹配 JSON 对象
+  const inlineMatch = !rawJson
+    ? reply.match(/(\{[\s\S]*"action"\s*:[\s\S]*\})/)
+    : null;
+  const jsonStr = rawJson ?? (inlineMatch ? inlineMatch[1].trim() : null);
+
+  if (!jsonStr) {
+    // 尝试提取 emotion only
+    const emoMatch = reply.match(/(\{"emotion"\s*:\s*"[^"]+"[^}]*\})/);
+    if (emoMatch) {
+      try {
+        const em = JSON.parse(emoMatch[1]) as Record<string, unknown>;
+        const text = reply.replace(emoMatch[0], "").trim();
+        return { text, action: null, emotion: typeof em.emotion === "string" ? em.emotion : null };
+      } catch { /* fall through */ }
+    }
+    return { text: reply.trim(), action: null, emotion: null };
+  }
+
   try {
-    const parsed = JSON.parse(match[1].trim()) as Record<string, unknown>;
+    const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
     const emotion = typeof parsed.emotion === "string" ? parsed.emotion : null;
-    const text = reply.replace(/```json[\s\S]*?```/, "").trim();
+    // 去除代码块或内联JSON后的干净文本
+    const text = reply
+      .replace(/```(?:json)?[\s\S]*?```/gi, "")
+      .replace(/\{[\s\S]*"action"\s*:[\s\S]*?\}/g, "")
+      .trim();
     const actionKeys = Object.keys(parsed).filter(k => k !== "emotion");
     const action = actionKeys.length > 0 ? parsed : null;
-    return { text, action, emotion };
+    return { text: text || reply.trim(), action, emotion };
   } catch {
+    console.error("[xiaoyu] JSON parse failed:", jsonStr);
     return { text: reply.trim(), action: null, emotion: null };
   }
 }
@@ -111,7 +151,7 @@ export async function POST(req: NextRequest) {
       ...recentMessages,
     ],
     temperature: 0.75,
-    max_tokens: 400,
+    max_tokens: 500,
   };
 
   try {
@@ -146,6 +186,8 @@ export async function POST(req: NextRequest) {
       console.error("[xiaoyu] empty reply, data:", JSON.stringify(data));
       return NextResponse.json({ error: "……", emotion: "thinking" }, { status: 502 });
     }
+
+    console.log("[xiaoyu] raw reply:", rawReply.slice(0, 300));
 
     const { text, action, emotion } = parseResponse(rawReply);
     return NextResponse.json({ reply: text, action, emotion });

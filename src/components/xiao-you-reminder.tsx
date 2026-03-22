@@ -142,7 +142,7 @@ function useSpeechRecognition(onResult: (text: string) => void) {
 // ─── Main component ───────────────────────────────────────────
 export function XiaoYouReminder() {
   const {
-    ddls, tasks, taskHistory, transactions, tracks,
+    ddls, tasks, taskHistory, transactions, tracks, notes,
     addTask, addTransaction, addWish, addDdl, addNote, triggerMusicCommand,
   } = useWorkspaceStore();
 
@@ -308,6 +308,7 @@ export function XiaoYouReminder() {
     const context = {
       tasks: tasks.map(t => ({ type: t.type, text: t.text, completed: t.completed })),
       ddls: ddls.map(d => ({ title: d.title, date: d.date, time: d.time })),
+      notes: notes.map(n => ({ content: n.content, category: n.category })),
       tracks: tracks.map((t, i) => ({ title: t.title, index: i })),
       pts,
       currentTime: new Date().toLocaleString("zh-CN"),
