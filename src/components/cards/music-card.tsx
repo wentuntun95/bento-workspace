@@ -54,8 +54,10 @@ export function MusicCard() {
   // ── 小鱿音乐控制（直接操作 audioRef，避免 state→effect 多层延迟）──────
   useEffect(() => {
     if (!musicCommand) return;
+    console.log("[music-card] musicCommand received:", musicCommand);
     const { cmd, index } = musicCommand;
     const audio = audioRef.current;
+    console.log("[music-card] audioRef:", audio?.src ?? "null", "readyState:", audio?.readyState);
 
     if (cmd === "play") {
       if (audio) {

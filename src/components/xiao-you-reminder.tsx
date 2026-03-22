@@ -321,9 +321,13 @@ export function XiaoYouReminder() {
         body: JSON.stringify({ messages: next, context }),
       });
       const data = await res.json() as { reply?: string; action?: AiAction; emotion?: string; error?: string };
+      console.log("[xiaoyu] data:", JSON.stringify(data).slice(0, 200));
       const reply = data.reply ?? data.error ?? "嗯，小鱿愣住了...";
       setMessages(prev => [...prev, { role: "assistant", content: reply }]);
-      if (data.action) executeAction(data.action);
+      if (data.action) {
+        console.log("[xiaoyu] executing action:", data.action);
+        executeAction(data.action);
+      }
       // 根据 AI 返回的 emotion 切换表情，否则随机切换
       const emoted = emoteByEmotion(data.emotion ?? null);
       setEmote(emoted ?? randomEmote(EMOTION_MAP.thinking.src));
