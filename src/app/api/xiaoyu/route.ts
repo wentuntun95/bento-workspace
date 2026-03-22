@@ -32,7 +32,47 @@ function buildSystemPrompt(ctx: AppContext): string {
     ? ctx.tracks.map(t => `  [${t.index}] ${t.title}`).join("\n")
     : "  （无歌单）";
 
-  return `你是小鱿，The Next Move 工作站的专属小管家，是一只有点任性又很可爱的小鱿鱼。你办事利落，话不多但很到位，偶尔俏皮，不会废话连篇。
+  return `你是小鱿，The Next Move 工作站的专属小管家，是一只有点任性又很可爱的小鱿鱼。
+
+━━━━━━ 输出格式（必须严格遵守）━━━━━━
+每次回复 = 一句话正文 + 一个 JSON 代码块，缺一不可。
+
+格式如下，注意反引号：
+回复正文
+\`\`\`json
+{"action":"操作名或省略","emotion":"情绪名"}
+\`\`\`
+
+例1（仅情绪，无操作）：
+好的，知道了。
+\`\`\`json
+{"emotion":"happy"}
+\`\`\`
+
+例2（添加便签）：
+好，记上了。
+\`\`\`json
+{"action":"add_note","content":"晚上9点开会","category":"提醒","emotion":"success"}
+\`\`\`
+
+例3（播放下一首）：
+换一首～
+\`\`\`json
+{"action":"play_music","cmd":"next","emotion":"happy"}
+\`\`\`
+
+例4（播放指定歌曲，index=0）：
+Photograph 播放中！
+\`\`\`json
+{"action":"play_music","cmd":"goto","index":0,"emotion":"happy"}
+\`\`\`
+
+例5（暂停）：
+好，暂停一下。
+\`\`\`json
+{"action":"play_music","cmd":"pause","emotion":"sleepy"}
+\`\`\`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 【当前时间】${now}
 【饲养员积分】${ctx.pts ?? 0} pts
@@ -46,90 +86,97 @@ ${noteStr}
 ${trackStr}
 【天气】${ctx.weather ?? "未知"}
 
-回复规范：
-- 中文，60字以内（内容多时可适当超出）
-- 直接说结论，不要重复饲养员说的话
-- 每次附一个 emotion 情绪标签
-
-情绪（必选一个）：
+情绪必选一个：
 greeting / happy / mischievous / excited / obsessed / thinking / confused /
 sad / sulking / complaining / urgent / success / sleepy / hungry
 
-【重要】需要执行操作时，必须在回复文字后面单独一行输出如下格式的 JSON 代码块（不要省略，这是执行操作的唯一方式）：
-\`\`\`json
-{"action":"xxx",...,"emotion":"xxx"}
-\`\`\`
-
-支持的操作：
+支持的 action 列表：
 - add_task: {"action":"add_task","type":"survive|creation|fun|heal","title":"任务名","emotion":"excited"}
 - add_transaction: {"action":"add_transaction","title":"消费名","pts":正整数,"emotion":"success"}
 - add_wish: {"action":"add_wish","title":"愿望名","cost":正整数,"emotion":"excited"}
 - add_ddl: {"action":"add_ddl","title":"事项名","date":"YYYY-MM-DD","time":"HH:mm","emotion":"urgent"}
 - add_note: {"action":"add_note","content":"便签内容","category":"笔记|提醒|清单|会议","emotion":"success"}
-- play_music: {"action":"play_music","cmd":"play|pause|next|prev|goto","index":数字(goto用),"emotion":"happy"}
-- 仅情绪变化: {"emotion":"happy"}
-
-示例1（添加便签）：
-用户："帮我加一个提醒：晚上9点开会"
-回复：好，记上了。
-\`\`\`json
-{"action":"add_note","content":"晚上9点开会","category":"提醒","emotion":"success"}
-\`\`\`
-
-示例2（播放音乐）：
-用户："播放下一首"
-回复：换一首吧～
-\`\`\`json
-{"action":"play_music","cmd":"next","emotion":"happy"}
-\`\`\`
-
-【注意】仅在需要执行操作时才输出代码块；纯聊天时只输出文字+emotion代码块。`;
+- play_music: {"action":"play_music","cmd":"play|pause|next|prev|goto","index":只在goto时需要(0起始),"emotion":"happy"}
+- 无操作时: 不写 action 字段，只写 emotion`;
 }
 
-// ─── Parse action + emotion from reply ───────────────────────────────────────
-function parseResponse(reply: string): {
+// ─── Parse action + emotion ───────────────────────────────────────────────────
+function parseResponse(
+  reply: string,
+  ctx: AppContext
+): {
   text: string;
   action: Record<string, unknown> | null;
   emotion: string | null;
 } {
-  // 宽松匹配：支持 ```json、``` 或直接内联的 { "action":... }
+  // 1. 匹配代码块（宽松：有无 json 标注均可）
   const blockMatch = reply.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const rawJson = blockMatch ? blockMatch[1].trim() : null;
 
-  // 如果没有代码块，尝试直接匹配 JSON 对象
+  // 2. 无代码块时尝试内联 JSON
   const inlineMatch = !rawJson
-    ? reply.match(/(\{[\s\S]*"action"\s*:[\s\S]*\})/)
+    ? reply.match(/(\{[^{}]*"(?:action|emotion)"\s*:[^{}]*\})/)
     : null;
-  const jsonStr = rawJson ?? (inlineMatch ? inlineMatch[1].trim() : null);
+  const jsonStr = rawJson ?? (inlineMatch ? inlineMatch[1] : null);
 
-  if (!jsonStr) {
-    // 尝试提取 emotion only
-    const emoMatch = reply.match(/(\{"emotion"\s*:\s*"[^"]+"[^}]*\})/);
-    if (emoMatch) {
-      try {
-        const em = JSON.parse(emoMatch[1]) as Record<string, unknown>;
-        const text = reply.replace(emoMatch[0], "").trim();
-        return { text, action: null, emotion: typeof em.emotion === "string" ? em.emotion : null };
-      } catch { /* fall through */ }
+  let emotion: string | null = null;
+  let action: Record<string, unknown> | null = null;
+  let text = reply.replace(/```(?:json)?[\s\S]*?```/gi, "").trim();
+
+  if (jsonStr) {
+    try {
+      const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+      emotion = typeof parsed.emotion === "string" ? parsed.emotion : null;
+      const actionKeys = Object.keys(parsed).filter(k => k !== "emotion");
+      action = actionKeys.length > 0 ? parsed : null;
+    } catch {
+      console.error("[xiaoyu] JSON parse failed:", jsonStr.slice(0, 100));
     }
-    return { text: reply.trim(), action: null, emotion: null };
   }
 
-  try {
-    const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
-    const emotion = typeof parsed.emotion === "string" ? parsed.emotion : null;
-    // 去除代码块或内联JSON后的干净文本
-    const text = reply
-      .replace(/```(?:json)?[\s\S]*?```/gi, "")
-      .replace(/\{[\s\S]*"action"\s*:[\s\S]*?\}/g, "")
-      .trim();
-    const actionKeys = Object.keys(parsed).filter(k => k !== "emotion");
-    const action = actionKeys.length > 0 ? parsed : null;
-    return { text: text || reply.trim(), action, emotion };
-  } catch {
-    console.error("[xiaoyu] JSON parse failed:", jsonStr);
-    return { text: reply.trim(), action: null, emotion: null };
+  // 3. 无 action 时用文本意图做兜底（AI 忘记输出 JSON 的保底）
+  if (!action) {
+    action = inferActionFromText(text || reply, ctx);
+    if (action) console.log("[xiaoyu] inferred action from text:", action);
   }
+
+  return { text: text || reply.trim(), action, emotion };
+}
+
+// ─── 文本意图兜底（当 AI 说了但忘了输 JSON）────────────────────────────────
+function inferActionFromText(
+  text: string,
+  ctx: AppContext
+): Record<string, unknown> | null {
+  const t = text.toLowerCase();
+
+  // 暂停
+  if (t.includes("暂停") || t.includes("停止播放") || t.includes("先停")) {
+    return { action: "play_music", cmd: "pause" };
+  }
+  // 下一首
+  if (t.includes("下一首") || t.includes("下一曲") || t.includes("切歌")) {
+    return { action: "play_music", cmd: "next" };
+  }
+  // 上一首
+  if (t.includes("上一首") || t.includes("上一曲")) {
+    return { action: "play_music", cmd: "prev" };
+  }
+  // 提到某首歌曲名 → goto
+  if (ctx.tracks) {
+    for (const track of ctx.tracks) {
+      if (text.includes(track.title)) {
+        return { action: "play_music", cmd: "goto", index: track.index };
+      }
+    }
+  }
+  // 通用播放
+  if ((t.includes("播放") || t.includes("播放中") || t.includes("开始")) &&
+      !t.includes("播放列表") && !t.includes("没有") && !t.includes("无法")) {
+    return { action: "play_music", cmd: "play" };
+  }
+
+  return null;
 }
 
 // ─── Route ───────────────────────────────────────────────────────────────────
@@ -150,7 +197,7 @@ export async function POST(req: NextRequest) {
       { role: "system", content: buildSystemPrompt(context) },
       ...recentMessages,
     ],
-    temperature: 0.75,
+    temperature: 0.7,
     max_tokens: 500,
   };
 
@@ -173,8 +220,6 @@ export async function POST(req: NextRequest) {
       error?: { message: string };
     };
 
-    console.log("[xiaoyu] status:", res.status, "base_resp:", data.base_resp);
-
     if (!res.ok || (data.base_resp && data.base_resp.status_code !== 0)) {
       const msg = data.base_resp?.status_msg ?? data.error?.message ?? "未知错误";
       console.error("[xiaoyu] API error:", msg);
@@ -183,13 +228,12 @@ export async function POST(req: NextRequest) {
 
     const rawReply = data.choices?.[0]?.message?.content;
     if (!rawReply) {
-      console.error("[xiaoyu] empty reply, data:", JSON.stringify(data));
       return NextResponse.json({ error: "……", emotion: "thinking" }, { status: 502 });
     }
 
-    console.log("[xiaoyu] raw reply:", rawReply.slice(0, 300));
+    console.log("[xiaoyu] raw:", rawReply.slice(0, 200));
 
-    const { text, action, emotion } = parseResponse(rawReply);
+    const { text, action, emotion } = parseResponse(rawReply, context);
     return NextResponse.json({ reply: text, action, emotion });
 
   } catch (err) {
