@@ -336,6 +336,12 @@ export function XiaoYouReminder() {
     if (!pos) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     pointerDownPos.current = { x: e.clientX, y: e.clientY };
+    // 用实际渲染位置而非 posRef，避免边缘干游 transition 还在运动时算出错误偏移
+    const wrapper = e.currentTarget.parentElement;
+    if (wrapper) {
+      const rect = wrapper.getBoundingClientRect();
+      posRef.current = { x: rect.left, y: rect.top };
+    }
     offsetRef.current = { x: e.clientX - posRef.current.x, y: e.clientY - posRef.current.y };
   }
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
@@ -494,8 +500,8 @@ export function XiaoYouReminder() {
             height: h,
             borderRadius: 2,
             background: chatOpen ? "#7c3aed" : "#a78bfa",
-            animation: chatOpen ? `waveBar${i} 0.8s ease-in-out infinite` : "none",
-            animationDelay: `${i * 0.12}s`,
+            // delay 内联入 animation shorthand，避免 React animation+animationDelay 冲突警告
+            animation: chatOpen ? `waveBar${i} 0.8s ease-in-out ${(i * 0.12).toFixed(2)}s infinite` : "none",
           }} />
         ))}
       </button>
