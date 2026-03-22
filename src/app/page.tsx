@@ -6,6 +6,7 @@ import { MobileBentoGrid } from "@/components/mobile-bento-grid";
 import { XiaoYouReminder } from "@/components/xiao-you-reminder";
 import { EnergyReportModal } from "@/components/energy-report-modal";
 import { LoginModal } from "@/components/login-modal";
+import { ConfettiManager } from "@/components/confetti-manager";
 import { useWorkspaceStore } from "@/lib/store";
 import { monthlyPoints } from "@/lib/points";
 import { useAuth } from "@/lib/auth-context";
@@ -171,6 +172,7 @@ export default function Home() {
           onApply={() => { setLoginView("apply"); setShowLogin(true); }}
         />
         <XiaoYouReminder isMobile />
+        <ConfettiManager />
         {showReport && <EnergyReportModal onClose={() => setShowReport(false)} />}
       </div>
     );
