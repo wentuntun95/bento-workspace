@@ -1,7 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// 清理 BOM / 不可见字符 / 首尾空白（Vercel env var 粘贴时易混入）
+const clean = (s: string | undefined) =>
+  (s ?? "").replace(/[^\x20-\x7E]/g, "").trim();
+
+const supabaseUrl     = clean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+const supabaseAnonKey = clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 // 浏览器端单例
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
