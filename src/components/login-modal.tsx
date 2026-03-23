@@ -188,7 +188,15 @@ function LoginView({ onBack }: { onBack?: () => void }) {
     setLoading(true); setErr("");
     const { error } = await signIn(email, pwd);
     setLoading(false);
-    if (error) setErr("邮箱或密码错误，请重试");
+    if (error) {
+      if (error.includes("Email not confirmed") || error.includes("email_not_confirmed")) {
+        setErr("邮箱未验证，请联系管理员开通或在 Supabase 确认邮件");
+      } else if (error.includes("Invalid login") || error.includes("invalid_credentials")) {
+        setErr("邮箱或密码错误");
+      } else {
+        setErr(`登录失败：${error}`);
+      }
+    }
   };
 
   return (

@@ -74,7 +74,7 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
 
   const handleClose = useCallback(() => {
     setClosing(true);
-    setTimeout(onClose, isMobile ? 520 : 360); // 动画时长略短于删除，避免白屏
+    setTimeout(onClose, isMobile ? 820 : 360); // 动画时长略短于删除，避免白屏
   }, [onClose]);
 
   useEffect(() => {
@@ -100,7 +100,7 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
         overflow: "hidden",
         boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
         animation: closing
-          ? (isMobile ? "slideOutDown 0.5s cubic-bezier(0.22,1,0.36,1) forwards" : "slideOutRight 0.35s cubic-bezier(0.22,1,0.36,1) forwards")
+          ? (isMobile ? "slideOutDown 0.8s cubic-bezier(0.22,1,0.36,1) forwards" : "slideOutRight 0.35s cubic-bezier(0.22,1,0.36,1) forwards")
           : (isMobile ? "slideInDown 0.5s cubic-bezier(0.22,1,0.36,1)" : "slideInRight  0.35s cubic-bezier(0.22,1,0.36,1)"),
       }}>
         {/* 书脊（水彩晕染） */}
