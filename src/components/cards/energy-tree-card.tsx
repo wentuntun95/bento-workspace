@@ -2,7 +2,37 @@
 
 import { useEffect, useRef } from "react";
 import { useWorkspaceStore } from "@/lib/store";
-import { weeklyEarned, monthlyEarned } from "@/lib/points";
+import { weeklyEarned, monthlyEarned, currentISOWeek, type TaskHistoryEntry } from "@/lib/points";
+
+// ── 按 ISO 周筛选 taskHistory，展开为虚拟果实列表 ──────────────────────────
+function getISOWeekFromStr(dateStr: string): string {
+  const d = new Date(dateStr);
+  const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = utc.getUTCDay() || 7;
+  utc.setUTCDate(utc.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+  const wk = Math.ceil(((utc.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${utc.getUTCFullYear()}-${String(wk).padStart(2, "0")}`;
+}
+
+type VirtualFruit = { type: string };
+
+function buildWeeklyFruits(
+  taskHistory: TaskHistoryEntry[],
+  currentTasks: { completed: boolean; type: string }[]
+): VirtualFruit[] {
+  const week = currentISOWeek();
+  const historic: VirtualFruit[] = [];
+  for (const entry of taskHistory) {
+    if (getISOWeekFromStr(entry.date) !== week) continue;
+    for (let i = 0; i < entry.survive; i++)  historic.push({ type: "survive" });
+    for (let i = 0; i < entry.creation; i++) historic.push({ type: "creation" });
+    for (let i = 0; i < entry.fun; i++)      historic.push({ type: "fun" });
+    for (let i = 0; i < entry.heal; i++)     historic.push({ type: "heal" });
+  }
+  const today: VirtualFruit[] = currentTasks.filter(t => t.completed).map(t => ({ type: t.type }));
+  return [...historic, ...today];
+}
 
 // ─────────────────────────────────────────────────────────────
 // CONSTANTS — matches energytree-design-note.md exactly
@@ -190,8 +220,9 @@ export function EnergyTreeCard() {
   const wPts = weeklyEarned(taskHistory, tasks);
   const mPts = monthlyEarned(taskHistory, tasks);
 
-  const completedTasks = tasks.filter(t => t.completed);
-  const fruits = completedTasks
+  // Hybrid B：本周 taskHistory 展开 + 今日实时 tasks
+  const allFruits = buildWeeklyFruits(taskHistory, tasks);
+  const fruits = allFruits
     .slice(-FRUIT_SLOTS.length)
     .map((t, i) => ({ slot: FRUIT_SLOTS[i], type: t.type }));
 
@@ -313,7 +344,7 @@ export function EnergyTreeCard() {
     draw();
     return () => { window.removeEventListener("resize", resize); cancelAnimationFrame(raf); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fruits.length, fruits.map(f => f.type).join(",")]);
+  }, [allFruits.length, allFruits.map(f => f.type).join(",")]);
 
   return (
     <div className="flex flex-col h-full w-full relative overflow-hidden rounded-3xl">
