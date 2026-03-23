@@ -15,6 +15,7 @@ interface AuthContextValue {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
   setAnon: () => void;
 }
 
@@ -74,13 +75,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(MODE_KEY);
   };
 
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { error: error.message };
+    return { error: null };
+  };
+
   const setAnon = () => {
     setMode("anon");
     localStorage.setItem(MODE_KEY, "anon");
   };
 
   return (
-    <AuthContext.Provider value={{ user, mode, loading, signIn, signOut, setAnon }}>
+    <AuthContext.Provider value={{ user, mode, loading, signIn, signOut, updatePassword, setAnon }}>
       {children}
     </AuthContext.Provider>
   );

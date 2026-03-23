@@ -330,3 +330,63 @@ export function LoginModal({
     document.body
   );
 }
+
+// ─── 修改密码 Modal ────────────────────────────────────────────────────────────
+export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const { updatePassword } = useAuth();
+  const [pwd, setPwd] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [err, setErr] = useState("");
+  const [ok, setOk] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  const handle = async () => {
+    if (!pwd) { setErr("请输入新密码"); return; }
+    if (pwd.length < 6) { setErr("密码至少 6 位"); return; }
+    if (pwd !== confirm) { setErr("两次密码不一致"); return; }
+    setLoading(true); setErr("");
+    const { error } = await updatePassword(pwd);
+    setLoading(false);
+    if (error) { setErr(`修改失败：${error}`); return; }
+    setOk(true);
+  };
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <>
+      <Overlay onClose={onClose} />
+      <Card>
+        {ok ? (
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
+            <p style={{ color: S.text, fontWeight: 700, margin: "0 0 6px" }}>密码已修改</p>
+            <button onClick={onClose} style={{
+              marginTop: 16, background: "none", border: "none",
+              color: S.muted, fontSize: 12, cursor: "pointer", textDecoration: "underline",
+            }}>关闭</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: S.text }}>修改密码</h2>
+              <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.muted, fontSize: 18, lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <PasswordInput value={pwd} onChange={setPwd} placeholder="新密码（至少 6 位）" />
+              <PasswordInput value={confirm} onChange={setConfirm} placeholder="再次输入新密码"
+                onKeyDown={e => e.key === "Enter" && handle()} />
+              {err && <p style={{ margin: 0, fontSize: 12, color: "#c0392b" }}>{err}</p>}
+              <GoldBtn onClick={handle}>{loading ? "提交中…" : "确认修改"}</GoldBtn>
+            </div>
+          </>
+        )}
+      </Card>
+    </>,
+    document.body
+  );
+}
+

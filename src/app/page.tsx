@@ -5,7 +5,7 @@ import { BentoGrid } from "@/components/bento-grid";
 import { MobileBentoGrid } from "@/components/mobile-bento-grid";
 import { XiaoYouReminder } from "@/components/xiao-you-reminder";
 import { EnergyReportModal } from "@/components/energy-report-modal";
-import { LoginModal } from "@/components/login-modal";
+import { LoginModal, ChangePasswordModal } from "@/components/login-modal";
 import { ConfettiManager } from "@/components/confetti-manager";
 import { useWorkspaceStore } from "@/lib/store";
 import { monthlyPoints } from "@/lib/points";
@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useMobile } from "@/hooks/useMobile";
 
 function Header({
-  onNav, currentPage, totalPages, onReport, onLogin, onApply,
+  onNav, currentPage, totalPages, onReport, onLogin, onApply, onChangePwd,
 }: {
   onNav: (n: number) => void;
   currentPage: number;
@@ -21,6 +21,7 @@ function Header({
   onReport: () => void;
   onLogin: () => void;
   onApply: () => void;
+  onChangePwd: () => void;
 }) {
   const { user, mode, signOut } = useAuth();
   const tasks       = useWorkspaceStore((s) => s.tasks);
@@ -92,9 +93,17 @@ function Header({
         )}
         {/* 已登录用户 */}
         {mode === "authenticated" && user && (
-          <span style={{ fontSize: 11, color: "#9A7850", cursor: "pointer" }}
-            onClick={signOut} title="点击登出">
-            {user.email?.split("@")[0]} ·登出
+          <span style={{ fontSize: 11, color: "#9A7850", display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ opacity: 0.8 }}>{user.email?.split("@")[0]}</span>
+            <button onClick={onChangePwd} style={{
+              background: "none", border: "1px solid rgba(180,140,70,0.3)",
+              borderRadius: 6, padding: "2px 7px", cursor: "pointer",
+              color: "#9A7850", fontSize: 10,
+            }}>改密</button>
+            <button onClick={signOut} style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: "#9A7850", fontSize: 10, textDecoration: "underline", padding: 0,
+            }}>登出</button>
           </span>
         )}
         {/* 成就按钮 */}
@@ -125,6 +134,7 @@ export default function Home() {
   const [showReport, setShowReport] = useState(false);
   const [showLogin, setShowLogin]   = useState(false);
   const [loginView, setLoginView]   = useState<"login" | "apply">("login");
+  const [showChangePwd, setShowChangePwd] = useState(false);
   const { mode, loading }           = useAuth();
   const isMobile                    = useMobile();
   const checkAndResetDaily   = useWorkspaceStore((s) => s.checkAndResetDaily);
@@ -195,7 +205,9 @@ export default function Home() {
         onReport={() => setShowReport(true)}
         onLogin={() => { setLoginView("login"); setShowLogin(true); }}
         onApply={() => { setLoginView("apply"); setShowLogin(true); }}
+        onChangePwd={() => setShowChangePwd(true)}
       />
+      {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
 
       <div
         ref={scrollRef}
