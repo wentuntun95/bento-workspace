@@ -231,12 +231,12 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
           to   { transform: translateX(100%); }
         }
         @keyframes slideInDown {
-          from { transform: translateY(-110%); opacity: 0; }
-          to   { transform: translateY(0); opacity: 1; }
+          from { transform: translateY(-110%); }
+          to   { transform: translateY(0); }
         }
         @keyframes slideOutDown {
-          from { transform: translateY(0); opacity: 1; }
-          to   { transform: translateY(120%); opacity: 0; }
+          from { transform: translateY(0); }
+          to   { transform: translateY(120%); }
         }
         @keyframes slideOutUp {
           from { transform: translateY(0); opacity: 1; }
