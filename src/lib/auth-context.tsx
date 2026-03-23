@@ -76,6 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updatePassword = async (newPassword: string) => {
+    // 先确认会话仍有效
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { error: "会话已过期，请重新登录后再修改密码" };
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) return { error: error.message };
     return { error: null };
