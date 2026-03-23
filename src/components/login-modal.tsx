@@ -361,13 +361,15 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
       <Overlay onClose={onClose} />
       <Card>
         {ok ? (
-          <div style={{ textAlign: "center", padding: "20px 0" }}>
+          <div style={{ position: "relative", textAlign: "center", padding: "20px 0" }}>
+            <button onClick={onClose} style={{
+              position: "absolute", top: -8, right: -8,
+              background: "none", border: "none", cursor: "pointer",
+              color: S.muted, fontSize: 18, lineHeight: 1, padding: 4,
+            }}>×</button>
             <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
             <p style={{ color: S.text, fontWeight: 700, margin: "0 0 6px" }}>密码已修改</p>
-            <button onClick={onClose} style={{
-              marginTop: 16, background: "none", border: "none",
-              color: S.muted, fontSize: 12, cursor: "pointer", textDecoration: "underline",
-            }}>关闭</button>
+            <p style={{ color: S.muted, fontSize: 12, margin: 0 }}>下次登录时使用新密码</p>
           </div>
         ) : (
           <>
