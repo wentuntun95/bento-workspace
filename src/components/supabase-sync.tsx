@@ -15,6 +15,8 @@ import {
   syncNotes,
   syncBookmarks,
 } from "@/lib/db";
+import { todayStr } from "@/lib/points";
+
 
 function makeDebounce<T>(fn: (v: T) => void, ms: number) {
   let timer: ReturnType<typeof setTimeout>;
@@ -54,6 +56,9 @@ export function SupabaseSyncProvider() {
         const stateUpdate: Record<string, unknown> = {};
         const uploads: Promise<unknown>[] = [];
 
+        // 今天是否已经发生了每日重置
+        const todayResetDone = local.lastDailyReset === todayStr();
+
         // 逐表判断：远端有数据 → 覆盖本地；远端空但本地有 → 上传
         type TableEntry = { key: string; rem: unknown[]; loc: unknown[]; up: () => Promise<unknown> };
         const tables: TableEntry[] = [
@@ -67,6 +72,15 @@ export function SupabaseSyncProvider() {
         ];
 
         for (const t of tables) {
+          // tasks 特殊处理：若今日重置已完成，Supabase 里的旧 tasks 是过期数据
+          // 不应覆盖本地已清空的状态，直接把空数组推回远端
+          if (t.key === "tasks" && todayResetDone) {
+            if (t.rem.length > 0) {
+              uploads.push(syncTasks(uid, [])); // 把空状态写回 Supabase
+            }
+            continue;
+          }
+
           if (t.rem.length > 0) {
             stateUpdate[t.key] = t.rem;
           } else if (t.loc.length > 0) {
