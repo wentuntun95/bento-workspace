@@ -100,7 +100,7 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
         overflow: "hidden",
         boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
         animation: closing
-          ? (isMobile ? "slideOutDown 0.8s cubic-bezier(0.22,1,0.36,1) forwards" : "slideOutRight 0.35s cubic-bezier(0.22,1,0.36,1) forwards")
+          ? (isMobile ? "slideOutDown 0.8s ease-in forwards" : "slideOutRight 0.35s cubic-bezier(0.22,1,0.36,1) forwards")
           : (isMobile ? "slideInDown 0.5s cubic-bezier(0.22,1,0.36,1)" : "slideInRight  0.35s cubic-bezier(0.22,1,0.36,1)"),
       }}>
         {/* 书脊（水彩晕染） */}
@@ -235,9 +235,9 @@ export function EnergyReportModal({ onClose }: { onClose: () => void }) {
           to   { transform: translateY(0); }
         }
         @keyframes slideOutDown {
-          0%   { transform: translateY(0);    opacity: 1; }
-          65%  { transform: translateY(80%);  opacity: 1; }
-          100% { transform: translateY(120%); opacity: 0; }
+          0%   { transform: translateY(0);      opacity: 1; }
+          60%  { transform: translateY(60vh);   opacity: 1; }
+          100% { transform: translateY(110vh);  opacity: 0; }
         }
         @keyframes slideOutUp {
           from { transform: translateY(0); opacity: 1; }
