@@ -158,7 +158,7 @@ function EntryView({ onAnon, onLogin, onApply }: {
           The Next Move
         </h2>
         <p style={{ margin: "6px 0 0", fontSize: 12, color: S.muted }}>
-          "Where you go, you go forward."
+          &quot;Where you go, you go forward.&quot;
         </p>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -304,7 +304,7 @@ export function LoginModal({
     else if (canClose) handleAnon();
   };
 
-  // 匹名用户从 Header 触发的弹窗：返回 = 关弹窗
+  // 匿名用户从 Header 触发的弹窗：返回 = 关弹窗
   // 首次访问弹窗：返回 = 回 entry view
   const handleBack = canClose ? handleClose : () => setView("entry");
 
@@ -333,7 +333,8 @@ export function LoginModal({
 
 // ─── 修改密码 Modal ────────────────────────────────────────────────────────────
 export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
-  const { updatePassword } = useAuth();
+  const { updatePassword, signIn, user } = useAuth();
+  const [current, setCurrent] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirm, setConfirm] = useState("");
   const [err, setErr] = useState("");
@@ -344,10 +345,16 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   useEffect(() => setMounted(true), []);
 
   const handle = async () => {
+    if (!current) { setErr("请输入当前密码"); return; }
     if (!pwd) { setErr("请输入新密码"); return; }
     if (pwd.length < 6) { setErr("密码至少 6 位"); return; }
     if (pwd !== confirm) { setErr("两次密码不一致"); return; }
+    if (!user?.email) { setErr("无法获取用户信息，请重新登录"); return; }
     setLoading(true); setErr("");
+    // 先用当前密码重新登录，刷新 session
+    const { error: signInErr } = await signIn(user.email, current);
+    if (signInErr) { setLoading(false); setErr("当前密码错误"); return; }
+    // session 已刷新，再修改密码
     const { error } = await updatePassword(pwd);
     setLoading(false);
     if (error) { setErr(`修改失败：${error}`); return; }
@@ -378,6 +385,7 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
               <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.muted, fontSize: 18, lineHeight: 1 }}>×</button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <PasswordInput value={current} onChange={setCurrent} placeholder="当前密码" />
               <PasswordInput value={pwd} onChange={setPwd} placeholder="新密码（至少 6 位）" />
               <PasswordInput value={confirm} onChange={setConfirm} placeholder="再次输入新密码"
                 onKeyDown={e => e.key === "Enter" && handle()} />
@@ -391,4 +399,3 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     document.body
   );
 }
-
