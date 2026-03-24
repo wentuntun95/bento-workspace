@@ -373,7 +373,7 @@ export function EnergyTreeCard() {
             <div className="flex items-center gap-1">
               <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600/70">Energy</span>
               <InfoTip
-                text={"果实按周更新，每周一重新计数，但我们不会陷入西西弗斯困境，积分历史会被铭刻进成就榜，幸福可能不在山顶！"}
+                text={"果实按周更新，每周一重新计数，但我们不会陷入西西弗斯困境，积分历史会被铭刻进成就榜！✨"}
                 color="#059669"
               />
             </div>
