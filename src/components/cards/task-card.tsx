@@ -6,6 +6,7 @@ import { useDroppable, useDndContext } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/lib/store";
 import { triggerConfettiIfMilestone } from "@/components/confetti-manager";
+import { InfoTip } from "@/components/info-tip";
 
 // ─── Theme config (hex-based, easy to swap) ───────────────────
 const THEME = {
@@ -111,12 +112,23 @@ export function TaskCard({ type }: TaskCardProps) {
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-2 flex-shrink-0">
-        <span
-          className="text-[14px] font-black leading-none tracking-wide"
-          style={{ color: t.dark, fontFamily: "var(--font-caveat, cursive)" }}
-        >
-          {t.name}
-        </span>
+        <div className="flex items-center gap-1">
+          <span
+            className="text-[14px] font-black leading-none tracking-wide"
+            style={{ color: t.dark, fontFamily: "var(--font-caveat, cursive)" }}
+          >
+            {t.name}
+          </span>
+          <InfoTip
+            text={{
+              survive:  "任务是每天更新的，\n今天也要努力工作！",
+              creation: "任务是每天更新的，\n今天就出发去伟大航路！！",
+              fun:      "任务是每天更新的，\n今天有没有让人兴奋的事情发生！",
+              heal:     "任务是每天更新的，\n「我只是一个想过平静生活的普通上班族」",
+            }[type]}
+            color={t.base}
+          />
+        </div>
         {tasks.length > 0 && (
           <span className="text-[9px] font-semibold text-foreground/30 tabular-nums">
             {done}/{tasks.length}

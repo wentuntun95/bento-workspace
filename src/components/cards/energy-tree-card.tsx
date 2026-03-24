@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useWorkspaceStore } from "@/lib/store";
 import { weeklyEarned, monthlyEarned, currentISOWeek, type TaskHistoryEntry } from "@/lib/points";
+import { InfoTip } from "@/components/info-tip";
 
 // ── 按 ISO 周筛选 taskHistory，展开为虚拟果实列表 ──────────────────────────
 function getISOWeekFromStr(dateStr: string): string {
@@ -369,7 +370,13 @@ export function EnergyTreeCard() {
       <div className="relative z-10 p-4 flex flex-col justify-between h-full pointer-events-none">
         <div className="flex justify-between items-end">
           <div className="pointer-events-auto flex flex-col bg-white/65 backdrop-blur-md px-3 py-2 rounded-2xl border border-emerald-100 shadow-sm">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600/70 mb-0.5">Energy</span>
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600/70">Energy</span>
+              <InfoTip
+                text={"果实按周更新，每周一重新计数，但我们不会陷入西西弗斯困境，积分历史会被铭刻进成就榜，幸福可能不在山顶！"}
+                color="#059669"
+              />
+            </div>
             <span className="text-lg font-black text-emerald-700 leading-none">
             <span className="text-[9px] font-medium text-emerald-500/80">本周累计</span>
               <span className="text-lg font-black text-emerald-700 ml-1.5">{wPts}</span>

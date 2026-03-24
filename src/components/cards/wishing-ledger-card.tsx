@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { useWorkspaceStore } from "@/lib/store";
 import { monthlyPoints, monthlyExchanged } from "@/lib/points";
 import { ChestBurst } from "@/components/chest-burst";
+import { InfoTip } from "@/components/info-tip";
 
 // ─── 共用工具 ─────────────────────────────────────────────────────────────────
 const WISH_THEME = { base: "#818cf8", dark: "#3730a3", pale: "#eef2ff" };
@@ -333,9 +334,15 @@ export function WishingLedgerCard({ imageFit = "cover" }: { imageFit?: "cover" |
 
         {/* ── 许愿区 ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-2">
-          <span style={{ fontFamily: "var(--font-caveat)", fontSize: 14, fontWeight: 700, color: WISH_THEME.dark }}>
-            Wishlist
-          </span>
+          <div className="flex items-center gap-1">
+            <span style={{ fontFamily: "var(--font-caveat)", fontSize: 14, fontWeight: 700, color: WISH_THEME.dark }}>
+              Wishlist
+            </span>
+            <InfoTip
+              text={"只能花本月积分，\n加油攒积分兑换吧！💜"}
+              color={WISH_THEME.base}
+            />
+          </div>
           <button onClick={() => { setAddingWish(true); setEditingWish(null); }}
             className="flex items-center gap-1 py-1 px-3 rounded-lg text-[11px] font-semibold transition-colors"
             style={{ fontFamily: "var(--font-caveat)", color: "rgba(0,0,0,0.35)", border: "none", background: "transparent", cursor: "pointer" }}
@@ -390,9 +397,15 @@ export function WishingLedgerCard({ imageFit = "cover" }: { imageFit?: "cover" |
 
         {/* ── 流水区 ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-2">
-          <span style={{ fontFamily: "var(--font-caveat)", fontSize: 14, fontWeight: 700, color: LED_THEME.dark }}>
-            Ledger
-          </span>
+          <div className="flex items-center gap-1">
+            <span style={{ fontFamily: "var(--font-caveat)", fontSize: 14, fontWeight: 700, color: LED_THEME.dark }}>
+              Ledger
+            </span>
+            <InfoTip
+              text={"这里是你的消费相册，\n兑换奖章将永久为你保留。\n删除上月旧记录不影响\n本月可用积分 💙"}
+              color={LED_THEME.base}
+            />
+          </div>
           <button onClick={() => { setAddingLed(true); setEditingLed(null); }}
             className="flex items-center gap-1 py-1 px-3 rounded-lg text-[11px] font-semibold transition-colors"
             style={{ fontFamily: "var(--font-caveat)", color: "rgba(0,0,0,0.35)", border: "none", background: "transparent", cursor: "pointer" }}
