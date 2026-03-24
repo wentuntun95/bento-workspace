@@ -11,7 +11,16 @@ export function InfoTip({ text, color = "#9A7850" }: { text: string; color?: str
   const recalc = useCallback(() => {
     const r = btnRef.current?.getBoundingClientRect();
     if (!r) return;
-    setPos({ top: r.bottom + 10, left: r.left - 6 });
+    const BUBBLE_W = 266; // maxWidth + 小余量
+    const MARGIN = 8;
+    let left = r.left - 6;
+    // 右侧溢出则向左推
+    if (left + BUBBLE_W > window.innerWidth - MARGIN) {
+      left = window.innerWidth - BUBBLE_W - MARGIN;
+    }
+    // 不要超出左边界
+    left = Math.max(MARGIN, left);
+    setPos({ top: r.bottom + 10, left });
   }, []);
 
   const toggle = () => {
