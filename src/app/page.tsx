@@ -41,7 +41,7 @@ function Header({
           The Next Move
         </h1>
         <p className="text-[10px] text-foreground/30 tracking-[0.12em] mt-0.5 ml-0.5">
-          "Where you go, you go forward."
+          &quot;Wherever you go, you go forward.&quot;
         </p>
       </div>
 

@@ -158,7 +158,7 @@ function EntryView({ onAnon, onLogin, onApply }: {
           The Next Move
         </h2>
         <p style={{ margin: "6px 0 0", fontSize: 12, color: S.muted }}>
-          &quot;Where you go, you go forward.&quot;
+          &quot;Wherever you go, you go forward.&quot;
         </p>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
