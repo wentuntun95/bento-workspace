@@ -100,6 +100,7 @@ interface WorkspaceState {
   addTask: (text: string, type: Task["type"]) => void;
   toggleTask: (id: string) => void;
   removeTask: (id: string) => void;
+  updateTask: (id: string, text: string) => void;
   addDdl: (title: string, date: Date, time: string, contact?: string) => void;
   removeDdl: (id: string) => void;
   updateDdl: (id: string, patch: Partial<Pick<DDLItem, "title" | "time" | "contact">>) => void;
@@ -207,6 +208,10 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       // 删除任务：不回退积分（未完成不影响，已完成等归档）
       removeTask: (id) => set((state) => ({
         tasks: state.tasks.filter(t => t.id !== id),
+      })),
+
+      updateTask: (id, text) => set((state) => ({
+        tasks: state.tasks.map(t => t.id === id ? { ...t, text } : t),
       })),
 
       // ── 每日重置：归档 → 清空 ───────────────────────────────────────────────

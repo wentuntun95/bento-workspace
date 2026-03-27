@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, Check, Trash2, X } from "lucide-react";
+import { Plus, Check, Trash2, X, Pencil } from "lucide-react";
 import { useDroppable, useDndContext } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/lib/store";
@@ -47,16 +47,31 @@ export function TaskCard({ type }: TaskCardProps) {
   const addTask    = useWorkspaceStore(s => s.addTask);
   const toggleTask = useWorkspaceStore(s => s.toggleTask);
   const removeTask = useWorkspaceStore(s => s.removeTask);
+  const updateTask = useWorkspaceStore(s => s.updateTask);
 
   const tasks = React.useMemo(() => allTasks.filter(t => t.type === type), [allTasks, type]);
   const done  = tasks.filter(t => t.completed).length;
 
-  const [adding, setAdding] = useState(false);
-  const [text, setText]     = useState("");
-  const [pops, setPops]     = useState<string[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [adding, setAdding]           = useState(false);
+  const [text, setText]               = useState("");
+  const [pops, setPops]               = useState<string[]>([]);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editText, setEditText]       = useState("");
+  const inputRef   = useRef<HTMLInputElement>(null);
+  const editRef    = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (adding) inputRef.current?.focus(); }, [adding]);
+  useEffect(() => { if (adding)      inputRef.current?.focus(); }, [adding]);
+  useEffect(() => { if (editingTaskId) editRef.current?.focus(); }, [editingTaskId]);
+
+  const startEdit = (task: { id: string; text: string }) => {
+    setEditingTaskId(task.id);
+    setEditText(task.text);
+    setAdding(false);
+  };
+  const submitEdit = (id: string) => {
+    if (editText.trim()) updateTask(id, editText.trim());
+    setEditingTaskId(null);
+  };
 
   const { isOver, setNodeRef } = useDroppable({
     id: `droppable-task-${type}`,
@@ -145,7 +160,7 @@ export function TaskCard({ type }: TaskCardProps) {
           <div className="flex-1" />
         ) : (
           tasks.map(task => (
-            <div
+          <div
               key={task.id}
               className="group relative flex items-center gap-2 px-2 py-[5px] rounded-lg transition-all duration-300"
               style={{
@@ -163,15 +178,31 @@ export function TaskCard({ type }: TaskCardProps) {
                 {task.completed && <Check size={10} strokeWidth={3} className="text-white" />}
               </button>
 
-              {/* Text */}
-              <span
-                className="flex-1 text-[12px] leading-snug min-w-0 truncate font-medium transition-all duration-300"
-                style={{ color: task.completed ? t.dark : undefined,
-                         textDecoration: task.completed ? "line-through" : "none",
-                         opacity: task.completed ? 0.6 : 1 }}
-              >
-                {task.text}
-              </span>
+              {/* Text / Edit input */}
+              {editingTaskId === task.id ? (
+                <input
+                  ref={editRef}
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  onBlur={() => submitEdit(task.id)}
+                  onKeyDown={e => {
+                    e.stopPropagation();
+                    if (e.key === "Enter") submitEdit(task.id);
+                    if (e.key === "Escape") setEditingTaskId(null);
+                  }}
+                  className="flex-1 text-[12px] bg-transparent outline-none py-0 min-w-0 border-b"
+                  style={{ borderColor: `${t.base}60`, color: t.dark, fontFamily: "var(--font-caveat, cursive)" }}
+                />
+              ) : (
+                <span
+                  className="flex-1 text-[12px] leading-snug min-w-0 truncate font-medium transition-all duration-300"
+                  style={{ color: task.completed ? t.dark : undefined,
+                           textDecoration: task.completed ? "line-through" : "none",
+                           opacity: task.completed ? 0.6 : 1 }}
+                >
+                  {task.text}
+                </span>
+              )}
 
               {/* +10 pop */}
               {pops.includes(task.id) && (
@@ -181,14 +212,25 @@ export function TaskCard({ type }: TaskCardProps) {
                 />
               )}
 
-              {/* Delete */}
-              <button
-                onClick={() => removeTask(task.id)}
-                className="flex-shrink-0 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity p-0.5 rounded hover:text-red-400 active:text-red-400"
-                style={{ color: "rgba(0,0,0,0.3)" }}
-              >
-                <X size={11} />
-              </button>
+              {/* Edit + Delete（hover 显示）*/}
+              {editingTaskId !== task.id && (
+                <>
+                  <button
+                    onClick={() => startEdit(task)}
+                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:text-amber-400 active:text-amber-400"
+                    style={{ color: "rgba(0,0,0,0.2)" }}
+                  >
+                    <Pencil size={10} />
+                  </button>
+                  <button
+                    onClick={() => removeTask(task.id)}
+                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity p-0.5 rounded hover:text-red-400 active:text-red-400"
+                    style={{ color: "rgba(0,0,0,0.3)" }}
+                  >
+                    <X size={11} />
+                  </button>
+                </>
+              )}
             </div>
           ))
         )}

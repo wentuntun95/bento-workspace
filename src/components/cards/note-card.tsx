@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Trash2, Plus, Check, X, Copy } from "lucide-react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { Trash2, Plus, Check, X, Copy, Pencil } from "lucide-react";
 import { useWorkspaceStore, type Note, type NoteCategory } from "@/lib/store";
 
 // ─── 分类配置 ─────────────────────────────────────────────────────
@@ -243,13 +243,29 @@ function CopyButton({ content }: { content: string }) {
 function AllNotesModal({ onClose }: { onClose: () => void }) {
   const notes      = useWorkspaceStore(s => s.notes);
   const removeNote = useWorkspaceStore(s => s.removeNote);
+  const updateNote = useWorkspaceStore(s => s.updateNote);
 
-  const [query,   setQuery]   = useState("");
+  const [query,     setQuery]     = useState("");
   const [catFilter, setCatFilter] = useState<NoteCategory | "全部">("全部");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [editCat,   setEditCat]   = useState<NoteCategory>("笔记");
+  const editRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { if (editingId) editRef.current?.focus(); }, [editingId]);
+
+  const startEdit = (n: Note) => {
+    setEditingId(n.id);
+    setEditDraft(n.content);
+    setEditCat(n.category);
+  };
+  const submitEdit = () => {
+    if (editingId) updateNote(editingId, editDraft.trim() || editDraft, editCat);
+    setEditingId(null);
+  };
 
   const allCats: (NoteCategory | "全部")[] = ["全部", "笔记", "提醒", "清单", "会议"];
 
-  // 过滤
   const filtered = [...notes]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .filter(n => {
@@ -258,7 +274,6 @@ function AllNotesModal({ onClose }: { onClose: () => void }) {
       return matchCat && matchQ;
     });
 
-  // 按日期分组
   const groups: { date: string; items: Note[] }[] = [];
   filtered.forEach(n => {
     const d = fmtDate(n.createdAt);
@@ -286,7 +301,6 @@ function AllNotesModal({ onClose }: { onClose: () => void }) {
 
         {/* 搜索 + 分类筛选 */}
         <div className="px-5 pt-3 pb-2 flex flex-col gap-2 flex-shrink-0">
-          {/* 关键词搜索 */}
           <div className="relative">
             <input
               type="text"
@@ -299,7 +313,6 @@ function AllNotesModal({ onClose }: { onClose: () => void }) {
               <button className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs" onClick={() => setQuery("")}>✕</button>
             )}
           </div>
-          {/* 分类 tab */}
           <div className="flex gap-1 flex-wrap">
             {allCats.map(c => {
               const cat0 = c === "全部" ? null : getCat(c);
@@ -331,21 +344,62 @@ function AllNotesModal({ onClose }: { onClose: () => void }) {
               <div className="flex flex-col gap-2">
                 {g.items.map(n => {
                   const cat0 = getCat(n.category);
+                  const isEditThis = editingId === n.id;
                   return (
                     <div key={n.id} className="relative rounded-2xl px-3 py-2.5 group"
                       style={{ background: cat0.color || "#fefce8", border: "1px solid rgba(0,0,0,0.06)" }}>
-                      <div className="flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: cat0.dot }} />
-                        <p className="text-[12px] text-slate-700 leading-relaxed flex-1 whitespace-pre-wrap" style={{ overflowWrap: "anywhere" }}>{n.content}</p>
-                        <span className="text-[10px] text-slate-400 flex-shrink-0 mt-0.5">{fmtTime(n.createdAt)}</span>
-                      </div>
-                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <CopyButton content={n.content} />
-                        <button
-                          className="w-5 h-5 rounded-full flex items-center justify-center bg-white/80 text-red-400 hover:text-red-600"
-                          onClick={() => removeNote(n.id)}
-                        ><Trash2 size={11} /></button>
-                      </div>
+                      {isEditThis ? (
+                        <div className="flex flex-col gap-2">
+                          <div className="flex gap-1 flex-wrap">
+                            {CATEGORIES.map(c => (
+                              <button key={c.value} onClick={() => setEditCat(c.value)}
+                                className="text-[9px] px-1.5 py-0.5 rounded-full transition-colors"
+                                style={{ background: editCat === c.value ? c.dot : "rgba(0,0,0,0.08)", color: editCat === c.value ? "white" : "#888" }}>
+                                {c.value}
+                              </button>
+                            ))}
+                          </div>
+                          <textarea
+                            ref={editRef}
+                            value={editDraft}
+                            onChange={e => {
+                              setEditDraft(e.target.value);
+                              const t = e.target;
+                              t.style.height = 'auto';
+                              t.style.height = t.scrollHeight + 'px';
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === "Escape") setEditingId(null);
+                              if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); submitEdit(); }
+                            }}
+                            className="w-full bg-transparent outline-none resize-none text-[12px] leading-relaxed text-slate-700 min-h-[60px]"
+                            style={{ overflowWrap: "anywhere" }}
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => setEditingId(null)} className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">取消</button>
+                            <button onClick={submitEdit} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400 text-white">保存</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: cat0.dot }} />
+                          <p className="text-[12px] text-slate-700 leading-relaxed flex-1 whitespace-pre-wrap" style={{ overflowWrap: "anywhere" }}>{n.content}</p>
+                          <span className="text-[10px] text-slate-400 flex-shrink-0 mt-0.5">{fmtTime(n.createdAt)}</span>
+                        </div>
+                      )}
+                      {!isEditThis && (
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            className="w-5 h-5 rounded-full flex items-center justify-center bg-white/80 text-slate-400 hover:text-amber-500 transition-colors"
+                            onClick={() => startEdit(n)}
+                          ><Pencil size={10} /></button>
+                          <CopyButton content={n.content} />
+                          <button
+                            className="w-5 h-5 rounded-full flex items-center justify-center bg-white/80 text-red-400 hover:text-red-600"
+                            onClick={() => removeNote(n.id)}
+                          ><Trash2 size={11} /></button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -357,6 +411,8 @@ function AllNotesModal({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+
+
 
 // ─── NoteWallGrid：网格布局专用竖向便签列 ─────────────────────────────────
 export function NoteWallGrid() {
@@ -510,12 +566,12 @@ function NoteCardRow({ note, isEditing, onStartEdit, onEndEdit }: {
             autoFocus
             className="flex-1 bg-transparent outline-none resize-none scrollbar-none text-[11px] leading-relaxed text-slate-700"
             value={draft}
-            rows={Math.max(2, Math.ceil(draft.length / 28), draft.split("\n").length)}
+            style={{ minHeight: 36, height: 'auto' }}
             onChange={e => {
               setDraft(e.target.value);
               const t = e.target;
-              // 只增高不缩短
-              if (t.scrollHeight > t.offsetHeight) t.style.height = t.scrollHeight + "px";
+              t.style.height = 'auto';
+              t.style.height = t.scrollHeight + "px";
             }}
             onBlur={submit}
             onKeyDown={e => {
@@ -538,7 +594,7 @@ function NoteCardRow({ note, isEditing, onStartEdit, onEndEdit }: {
         ) : (
           /* 非编辑状态：文本 + hover 删除按钮（放在同一分支，彻底避免状态竞争） */
           <div className="flex-1 relative">
-            <p className="text-[11px] leading-relaxed text-slate-700 whitespace-pre-wrap pr-12" style={{ overflowWrap: "anywhere" }}>{note.content}</p>
+            <p className="text-[11px] leading-relaxed text-slate-700 whitespace-pre-wrap" style={{ overflowWrap: "anywhere" }}>{note.content}</p>
             {hovered && (
               <div className="absolute top-0 right-0 flex gap-1">
                 <button
