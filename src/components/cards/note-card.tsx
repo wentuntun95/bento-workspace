@@ -538,7 +538,17 @@ function NoteCardRow({ note, isEditing, onStartEdit, onEndEdit }: {
   const [draft, setDraft]     = useState(note.content);
   const [hovered, setHovered] = useState(false);
   const [copied, setCopied]   = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
   const cat0 = getCat(note.category);
+
+  // 每次 isEditing 变为 true，立即按内容设置初始高度
+  useLayoutEffect(() => {
+    if (isEditing && taRef.current) {
+      const t = taRef.current;
+      t.style.height = 'auto';
+      t.style.height = t.scrollHeight + 'px';
+    }
+  }, [isEditing]);
 
   const copyNote = () => {
     navigator.clipboard.writeText(note.content).catch(() => {});
@@ -563,10 +573,11 @@ function NoteCardRow({ note, isEditing, onStartEdit, onEndEdit }: {
         <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: cat0.dot }} />
         {isEditing ? (
           <textarea
+            ref={taRef}
             autoFocus
             className="flex-1 bg-transparent outline-none resize-none scrollbar-none text-[11px] leading-relaxed text-slate-700"
             value={draft}
-            style={{ minHeight: 36, height: 'auto' }}
+            style={{ minHeight: 36 }}
             onChange={e => {
               setDraft(e.target.value);
               const t = e.target;
