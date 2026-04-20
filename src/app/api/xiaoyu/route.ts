@@ -143,6 +143,9 @@ export async function POST(req: NextRequest) {
     messages: apiMessages,
     temperature: 0.7,
     max_tokens:  300,
+    stream:      false,          // 明确关闭流式，防止 SSE 格式干扰
+    // qwen3 系列有 thinking 模式，关掉避免输出 <think>...</think> 污染 JSON
+    ...(model.startsWith("qwen3") ? { enable_thinking: false } : {}),
   };
 
   try {
