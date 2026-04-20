@@ -117,59 +117,59 @@ function parseResponse(raw: string): {
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.DASHSCOPE_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 });
+    return NextResponse.json({ error: "DashScope API key not configured" }, { status: 500 });
   }
 
   const body = await req.json() as { messages: ChatMessage[]; context?: AppContext };
   const { messages, context = {} } = body;
 
-  const systemPrompt = buildSystemPrompt(context);
+  const model = process.env.DASHSCOPE_MODEL ?? "qwen-turbo";
 
-  // Gemini 用 "user" / "model"（不是 "assistant"），system 单独传
-  const geminiContents = messages.slice(-30).map((m, i, arr) => {
-    const role = m.role === "assistant" ? "model" : "user";
-    let content = m.content;
-    if (i === arr.length - 1 && m.role === "user") {
-      content += "\n[注意：只输出一个 JSON 对象，不要加任何其他文字或代码块]";
-    }
-    return { role, parts: [{ text: content }] };
-  });
+  // 千问 OpenAI 兼容模式：system 直接放 messages 数组第一条
+  const apiMessages = [
+    { role: "system", content: buildSystemPrompt(context) },
+    ...messages.slice(-30).map((m, i, arr) => {
+      if (i === arr.length - 1 && m.role === "user") {
+        return { ...m, content: m.content + "\n[注意：只输出一个 JSON 对象，不要加任何其他文字或代码块]" };
+      }
+      return m;
+    }),
+  ];
 
   const payload = {
-    system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: geminiContents,
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 300,
-    },
+    model,
+    messages: apiMessages,
+    temperature: 0.7,
+    max_tokens:  300,
   };
-
-  const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
       {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       }
     );
 
     const data = await res.json() as {
-      candidates?: { content: { parts: { text: string }[] } }[];
-      error?: { message: string };
+      choices?: { message: { content: string } }[];
+      error?:   { message: string; code?: string };
     };
 
     if (!res.ok || data.error) {
       const msg = data.error?.message ?? `HTTP ${res.status}`;
-      console.error("[xiaoyu] Gemini error:", msg);
+      console.error("[xiaoyu] DashScope error:", msg);
       return NextResponse.json({ error: `小鱿出了点问题... (${msg})`, emotion: "sleepy" }, { status: 502 });
     }
 
-    const rawReply = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const rawReply = data.choices?.[0]?.message?.content ?? "";
     if (!rawReply) {
       return NextResponse.json({ error: "……", emotion: "thinking" }, { status: 502 });
     }
