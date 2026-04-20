@@ -96,7 +96,6 @@ function parseResponse(raw: string): {
   action: Record<string, unknown> | null;
   emotion: string | null;
 } {
-  // Strip markdown fences if model forgets
   const cleaned = raw
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/,          "")
@@ -106,7 +105,6 @@ function parseResponse(raw: string): {
     const parsed = JSON.parse(cleaned) as Record<string, unknown>;
     const text    = typeof parsed.reply   === "string" ? parsed.reply   : raw.trim();
     const emotion = typeof parsed.emotion === "string" ? parsed.emotion : null;
-    // Everything except reply/emotion may form the action object
     const { reply: _r, emotion: _e, ...rest } = parsed;
     const action = "action" in rest ? rest : null;
     console.log("[xiaoyu] parsed:", { text: text.slice(0, 60), action, emotion });
@@ -119,56 +117,59 @@ function parseResponse(raw: string): {
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const apiKey  = process.env.MINIMAX_API_KEY;
-  const groupId = process.env.MINIMAX_GROUP_ID;
-  if (!apiKey || !groupId) {
-    return NextResponse.json({ error: "MiniMax API key not configured" }, { status: 500 });
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 });
   }
 
   const body = await req.json() as { messages: ChatMessage[]; context?: AppContext };
   const { messages, context = {} } = body;
 
-  // 在最后一条 user 消息末尾注入格式提醒（只影响本次 API 调用，不改存储的历史）
-  const apiMessages = messages.slice(-30).map((m, i, arr) => {
+  const systemPrompt = buildSystemPrompt(context);
+
+  // Gemini 用 "user" / "model"（不是 "assistant"），system 单独传
+  const geminiContents = messages.slice(-30).map((m, i, arr) => {
+    const role = m.role === "assistant" ? "model" : "user";
+    let content = m.content;
     if (i === arr.length - 1 && m.role === "user") {
-      return { ...m, content: m.content + "\n[注意：只输出一个 JSON 对象，不要加任何其他文字或代码块]" };
+      content += "\n[注意：只输出一个 JSON 对象，不要加任何其他文字或代码块]";
     }
-    return m;
+    return { role, parts: [{ text: content }] };
   });
 
   const payload = {
-    model: "MiniMax-M2.7",
-    messages: [
-      { role: "system", content: buildSystemPrompt(context) },
-      ...apiMessages,
-    ],
-    temperature: 0.7,
-    max_tokens:  300,
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents: geminiContents,
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 300,
+    },
   };
+
+  const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
 
   try {
     const res = await fetch(
-      `https://api.minimax.chat/v1/text/chatcompletion_v2?GroupId=${groupId}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method:  "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body:    JSON.stringify(payload),
       }
     );
 
     const data = await res.json() as {
-      choices?:   { message: { content: string } }[];
-      base_resp?: { status_code: number; status_msg: string };
-      error?:     { message: string };
+      candidates?: { content: { parts: { text: string }[] } }[];
+      error?: { message: string };
     };
 
-    if (!res.ok || data.base_resp?.status_code !== 0) {
-      const msg = data.base_resp?.status_msg ?? data.error?.message ?? "未知错误";
-      console.error("[xiaoyu] API error:", msg);
+    if (!res.ok || data.error) {
+      const msg = data.error?.message ?? `HTTP ${res.status}`;
+      console.error("[xiaoyu] Gemini error:", msg);
       return NextResponse.json({ error: `小鱿出了点问题... (${msg})`, emotion: "sleepy" }, { status: 502 });
     }
 
-    const rawReply = data.choices?.[0]?.message?.content ?? "";
+    const rawReply = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     if (!rawReply) {
       return NextResponse.json({ error: "……", emotion: "thinking" }, { status: 502 });
     }
