@@ -46,7 +46,7 @@ greeting / happy / mischievous / excited / obsessed / thinking / confused /
 sad / sulking / complaining / urgent / success / sleepy / hungry
 
 操作（action）字段规则：
-任务颜色：蓝=survive 绿=creation 黄=fun 粉=heal
+任务颜色：蓝=survive 绿=creation 粉=fun 紫=heal
 时间格式：date 用 YYYY-MM-DD，time 用 HH:mm（下午/晚上自动+12小时）
 DDL 日期词：今天/今晚=今日，明天=+1天，后天=+2天
 
