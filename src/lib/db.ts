@@ -43,7 +43,7 @@ export async function syncTasks(userId: string, tasks: Task[]) {
   const { error } = await supabase.from("tasks").upsert(rows, { onConflict: "id" });
   if (error) { console.error("[sync] tasks error:", error.message); return; }
   const ids = tasks.map(t => t.id);
-  await supabase.from("tasks").delete().eq("user_id", userId).not("id", "in", `(${ids.join(",")})`);
+  await supabase.from("tasks").delete().eq("user_id", userId).not("id", "in", ids);
 }
 
 // ─── Task History ────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ export async function syncTransactions(userId: string, txns: Transaction[]) {
   const { error } = await supabase.from("transactions").upsert(rows, { onConflict: "id" });
   if (error) { console.error("[sync] transactions error:", error.message); return; }
   const ids = txns.map(t => t.id);
-  await supabase.from("transactions").delete().eq("user_id", userId).not("id", "in", `(${ids.join(",")})`);
+  await supabase.from("transactions").delete().eq("user_id", userId).not("id", "in", ids);
 }
 
 // ─── Wishlist ────────────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ export async function syncWishlist(userId: string, wishlist: WishItem[]) {
   const { error } = await supabase.from("wishlist").upsert(rows, { onConflict: "id" });
   if (error) { console.error("[sync] wishlist error:", error.message); return; }
   const ids = wishlist.map(w => w.id);
-  await supabase.from("wishlist").delete().eq("user_id", userId).not("id", "in", `(${ids.join(",")})`);
+  await supabase.from("wishlist").delete().eq("user_id", userId).not("id", "in", ids);
 }
 
 // ─── DDLs ────────────────────────────────────────────────────────────────────
@@ -173,7 +173,7 @@ export async function syncDdls(userId: string, ddls: DDLItem[]) {
   const { error } = await supabase.from("ddls").upsert(rows, { onConflict: "id" });
   if (error) { console.error("[sync] ddls error:", error.message); return; }
   const ids = ddls.map(d => d.id);
-  await supabase.from("ddls").delete().eq("user_id", userId).not("id", "in", `(${ids.join(",")})`);
+  await supabase.from("ddls").delete().eq("user_id", userId).not("id", "in", ids);
 }
 
 // ─── Notes ───────────────────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ export async function syncNotes(userId: string, notes: Note[]) {
   const { error } = await supabase.from("notes").upsert(rows, { onConflict: "id" });
   if (error) { console.error("[sync] notes error:", error.message); return; }
   const ids = notes.map(n => n.id);
-  await supabase.from("notes").delete().eq("user_id", userId).not("id", "in", `(${ids.join(",")})`);
+  await supabase.from("notes").delete().eq("user_id", userId).not("id", "in", ids);
 }
 
 // ─── Bookmarks ───────────────────────────────────────────────────────────────
