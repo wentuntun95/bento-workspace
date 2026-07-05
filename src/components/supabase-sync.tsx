@@ -17,12 +17,16 @@ import {
 } from "@/lib/db";
 import { todayStr } from "@/lib/points";
 
+import { supabase } from "@/lib/supabase";
 
-function makeDebounce<T>(fn: (v: T) => void, ms: number) {
+function makeDebounce<T>(fn: (v: T) => Promise<unknown>, ms: number, onStart: () => void, onEnd: () => void) {
   let timer: ReturnType<typeof setTimeout>;
   return (v: T) => {
     clearTimeout(timer);
-    timer = setTimeout(() => fn(v), ms);
+    timer = setTimeout(() => {
+      onStart();
+      fn(v).finally(() => onEnd());
+    }, ms);
   };
 }
 
@@ -30,6 +34,7 @@ export function SupabaseSyncProvider() {
   const { user, mode } = useAuth();
   const loaded    = useRef(false);
   const isSyncing = useRef(false); // 防止 setState 后 subscribe 循环写
+  const pendingWrites = useRef(0); // 记录是否有正在进行的本地写入，防止被远端覆盖打断输入
 
   useEffect(() => {
     if (mode !== "authenticated" || !user) {
@@ -40,26 +45,24 @@ export function SupabaseSyncProvider() {
     const uid = user.id;
     const DELAY = 1200;
 
-    const dTasks        = makeDebounce((v: Task[])             => syncTasks(uid, v),        DELAY);
-    const dHistory      = makeDebounce((v: TaskHistoryEntry[]) => syncTaskHistory(uid, v),  DELAY);
-    const dTransactions = makeDebounce((v: Transaction[])      => syncTransactions(uid, v), DELAY);
-    const dWishlist     = makeDebounce((v: WishItem[])         => syncWishlist(uid, v),     DELAY);
-    const dDdls         = makeDebounce((v: DDLItem[])          => syncDdls(uid, v),         DELAY);
-    const dNotes        = makeDebounce((v: Note[])             => syncNotes(uid, v),        DELAY);
-    const dBookmarks    = makeDebounce((v: Bookmark[])         => syncBookmarks(uid, v),    DELAY);
+    const onStart = () => { pendingWrites.current++; };
+    const onEnd   = () => { pendingWrites.current = Math.max(0, pendingWrites.current - 1); };
 
-    if (!loaded.current) {
-      loaded.current = true;
+    const dTasks        = makeDebounce((v: Task[])             => syncTasks(uid, v),        DELAY, onStart, onEnd);
+    const dHistory      = makeDebounce((v: TaskHistoryEntry[]) => syncTaskHistory(uid, v),  DELAY, onStart, onEnd);
+    const dTransactions = makeDebounce((v: Transaction[])      => syncTransactions(uid, v), DELAY, onStart, onEnd);
+    const dWishlist     = makeDebounce((v: WishItem[])         => syncWishlist(uid, v),     DELAY, onStart, onEnd);
+    const dDdls         = makeDebounce((v: DDLItem[])          => syncDdls(uid, v),         DELAY, onStart, onEnd);
+    const dNotes        = makeDebounce((v: Note[])             => syncNotes(uid, v),        DELAY, onStart, onEnd);
+    const dBookmarks    = makeDebounce((v: Bookmark[])         => syncBookmarks(uid, v),    DELAY, onStart, onEnd);
 
+    const fetchAndMerge = (isInitial: boolean) => {
       loadAllUserData(uid).then((remote) => {
         const local = useWorkspaceStore.getState();
         const stateUpdate: Record<string, unknown> = {};
         const uploads: Promise<unknown>[] = [];
-
-        // 今天是否已经发生了每日重置
         const todayResetDone = local.lastDailyReset === todayStr();
 
-        // 逐表判断：远端有数据 → 覆盖本地；远端空但本地有 → 上传
         type TableEntry = { key: string; rem: unknown[]; loc: unknown[]; up: () => Promise<unknown> };
         const tables: TableEntry[] = [
           { key: "tasks",        rem: remote.tasks,        loc: local.tasks,        up: () => syncTasks(uid, local.tasks) },
@@ -72,26 +75,32 @@ export function SupabaseSyncProvider() {
         ];
 
         for (const t of tables) {
-          // tasks 特殊处理：若今日重置已完成，Supabase 里的旧 tasks 是过期数据
-          // 但不能粗暴清空，必须保留“今天在其他设备上新创建”的任务
           if (t.key === "tasks" && todayResetDone) {
             const today = todayStr();
             const validRemoteTasks = (t.rem as Task[]).filter(
               (task) => task.createdAt.slice(0, 10) >= today
             );
-
-            if (validRemoteTasks.length > 0) {
+            if (isInitial) {
+              if (validRemoteTasks.length > 0) {
+                stateUpdate[t.key] = validRemoteTasks;
+              } else if (t.rem.length > 0) {
+                uploads.push(syncTasks(uid, []));
+              }
+            } else {
               stateUpdate[t.key] = validRemoteTasks;
-            } else if (t.rem.length > 0) {
-              uploads.push(syncTasks(uid, [])); // 云端全是过期任务，直接清空
             }
             continue;
           }
 
-          if (t.rem.length > 0) {
+          if (isInitial) {
+            if (t.rem.length > 0) {
+              stateUpdate[t.key] = t.rem;
+            } else if (t.loc.length > 0) {
+              uploads.push(t.up());
+            }
+          } else {
+            // Realtime 永远信任远端，哪怕远端是空的（说明在其他设备被清空了）
             stateUpdate[t.key] = t.rem;
-          } else if (t.loc.length > 0) {
-            uploads.push(t.up());
           }
         }
 
@@ -104,11 +113,27 @@ export function SupabaseSyncProvider() {
           Promise.all(uploads).then(() => console.log("[sync] initial upload done"));
         }
       });
+    };
+
+    if (!loaded.current) {
+      loaded.current = true;
+      fetchAndMerge(true);
     }
+
+    // ① Supabase 实时监听，当其他设备改变数据时主动拉取
+    let realtimeDebounceTimer: ReturnType<typeof setTimeout>;
+    const channel = supabase.channel(`public:all:${uid}`)
+      .on("postgres_changes", { event: "*", schema: "public", filter: `user_id=eq.${uid}` }, () => {
+        if (pendingWrites.current > 0) return; // 自己正在写，忽略远端推送以防打断输入
+        clearTimeout(realtimeDebounceTimer);
+        realtimeDebounceTimer = setTimeout(() => {
+          if (pendingWrites.current === 0) fetchAndMerge(false);
+        }, 800); // 防抖拉取
+      })
+      .subscribe();
 
     // ② 订阅 store 变化 → debounce 同步
     let prev = useWorkspaceStore.getState();
-
     const unsub = useWorkspaceStore.subscribe((s) => {
       if (isSyncing.current) { prev = s; return; } // 加载期间跳过
 
@@ -122,7 +147,10 @@ export function SupabaseSyncProvider() {
       prev = s;
     });
 
-    return () => unsub();
+    return () => {
+      unsub();
+      supabase.removeChannel(channel);
+    };
   }, [mode, user]);
 
   return null;
