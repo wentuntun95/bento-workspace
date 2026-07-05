@@ -73,10 +73,17 @@ export function SupabaseSyncProvider() {
 
         for (const t of tables) {
           // tasks 特殊处理：若今日重置已完成，Supabase 里的旧 tasks 是过期数据
-          // 不应覆盖本地已清空的状态，直接把空数组推回远端
+          // 但不能粗暴清空，必须保留“今天在其他设备上新创建”的任务
           if (t.key === "tasks" && todayResetDone) {
-            if (t.rem.length > 0) {
-              uploads.push(syncTasks(uid, [])); // 把空状态写回 Supabase
+            const today = todayStr();
+            const validRemoteTasks = (t.rem as Task[]).filter(
+              (task) => task.createdAt.slice(0, 10) >= today
+            );
+
+            if (validRemoteTasks.length > 0) {
+              stateUpdate[t.key] = validRemoteTasks;
+            } else if (t.rem.length > 0) {
+              uploads.push(syncTasks(uid, [])); // 云端全是过期任务，直接清空
             }
             continue;
           }
