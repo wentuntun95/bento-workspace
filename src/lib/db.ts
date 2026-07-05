@@ -43,7 +43,7 @@ export async function syncTasks(userId: string, tasks: Task[]) {
   const { error } = await supabase.from("tasks").upsert(rows, { onConflict: "id" });
   if (error) { console.error("[sync] tasks error:", error.message); return; }
   const ids = tasks.map(t => t.id);
-  await supabase.from("tasks").delete().eq("user_id", userId).not("id", "in", ids);
+  await supabase.from("tasks").delete().eq("user_id", userId).not("id", "in", `(${ids.join(",")})`);
 }
 
 // ─── Task History ────────────────────────────────────────────────────────────
