@@ -123,3 +123,12 @@ create policy "anyone can apply"
   on pending_applications for insert
   with check (true);
 -- 只有 service_role 可以 SELECT / DELETE（通过 Admin API Route 操作）
+
+-- ============================================================
+-- Enable Realtime for all data tables
+-- ============================================================
+begin;
+  drop publication if exists supabase_realtime;
+  create publication supabase_realtime;
+commit;
+alter publication supabase_realtime add table tasks, task_history, transactions, wishlist, ddls, notes, bookmarks;
